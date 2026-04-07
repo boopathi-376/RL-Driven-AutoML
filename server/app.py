@@ -69,15 +69,6 @@ _shared_env = ModelSelectorEnvironment()
 def get_shared_env():
     return _shared_env
 
-@app.post("/reset")
-async def reset(params: Optional[Dict[str, Any]] = None, task: Optional[str] = None):
-    """Resets the environment. Supports task-based reset via query param or JSON body."""
-    if params is None:
-        params = {}
-    if task:
-        params["task"] = task
-    return _shared_env.reset(params)
-
 app = create_app(
     get_shared_env,
     ModelSelectorAction,
@@ -87,7 +78,7 @@ app = create_app(
 )
 
 # ==========================================================
-# CUSTOM UI ENDPOINTS
+# CUSTOM UI & API ENDPOINTS
 # ==========================================================
 
 @app.get("/grade")
@@ -115,6 +106,15 @@ def grade_task(task: str = "easy"):
     except Exception as e:
         logger.error(f"Grading failed: {e}")
         return {"success": False, "error": str(e)}
+
+@app.post("/reset")
+async def reset(params: Optional[Dict[str, Any]] = None, task: Optional[str] = None):
+    """Resets the environment. Supports task-based reset via query param or JSON body."""
+    if params is None:
+        params = {}
+    if task:
+        params["task"] = task
+    return _shared_env.reset(params)
 
 @app.get("/", include_in_schema=False)
 def root_redirect():
