@@ -11,7 +11,7 @@ API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 
-ENV_URL = "http://127.0.0.1:8000"
+ENV_URL = os.getenv("ENV_URL") or "https://boopathi376-rl-driven-automl.hf.space"
 
 TASK_NAME = "model_selector"
 BENCHMARK = "openenv"
@@ -103,9 +103,9 @@ async def main() -> None:
     try:
         result = await env.reset(
             params={
-                "data_path": "C:/Users/Asus/Downloads/HACK/model_selector/data/Salary_dataset.csv",
+                "data_path": "data/Salary_dataset.csv",
                 "target_column": "Salary",
-                "latency_budget": 100.0,
+                "latency_budget": 120.0,
                 "memory_limit_mb": 0.0,
             }
         )

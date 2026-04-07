@@ -268,19 +268,19 @@ def custom_playground():
             
             <!-- State Dashboard -->
             <div class="state-dashboard">
-                <div class="stat-card">
-                    <span class="stat-label">Current Step</span>
-                    <span id="stat-current-step" class="stat-value">-</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Next Stage</span>
-                    <span id="stat-stage" class="stat-value">-</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Reward</span>
-                    <span id="stat-reward" class="stat-value">-</span>
-                </div>
-            </div>
+    <div class="stat-card">
+        <span class="stat-label">Current Step</span>
+        <span id="stat-current-step" class="stat-value">-</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Next Stage</span>
+        <span id="stat-next-stage" class="stat-value">-</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Reward</span>
+        <span id="stat-reward" class="stat-value">-</span>
+    </div>
+</div>
 
             <div class="grid">
                 <div class="section">
@@ -330,49 +330,44 @@ def custom_playground():
         <script>
             // Helper function to update dashboard with observation data
             function updateDashboard(data) {
-                // Extract observation from response
-                const observation = data.observation || data;
-                
-                // Update Current Step
-                const currentStep = observation.current_step ?? observation.step_count ?? data.step_count;
-                if (currentStep !== undefined && currentStep !== null) {
-                    document.getElementById('stat-current-step').textContent = currentStep;
-                }
-                
-                // Update Current Stage
-                const currentStage = observation.current_stage || observation.stage;
-                if (currentStage) {
-                    document.getElementById('stat-stage').textContent = currentStage;
-                }
-                
-                // Update Next Stage
-                const nextStage = observation.next_stage || observation.next_stage_name;
-                if (nextStage) {
-                    document.getElementById('stat-next-stage').textContent = nextStage;
-                } else {
-                    document.getElementById('stat-next-stage').textContent = 'Complete!';
-                }
-                
-                // Update Reward
-                const reward = observation.reward ?? data.reward;
-                if (reward !== undefined && reward !== null) {
-                    const rewardElement = document.getElementById('stat-reward');
-                    rewardElement.textContent = typeof reward === 'number' ? reward.toFixed(3) : reward;
-                    if (reward > 0) {
-                        rewardElement.style.color = '#10b981';
-                    } else if (reward < 0) {
-                        rewardElement.style.color = '#ef4444';
-                    } else {
-                        rewardElement.style.color = '#8b5cf6';
-                    }
-                }
-                
-                // Check if episode is done
-                if (observation.done || data.done) {
-                    document.getElementById('stat-next-stage').textContent = '🏁 Episode Complete';
-                }
-            }
-            
+    // Extract observation from response
+    const observation = data.observation || data;
+    
+    // Update Current Step
+    const currentStep = observation.current_step ?? observation.step_count ?? data.step_count;
+    const stepElement = document.getElementById('stat-current-step');
+    if (stepElement && currentStep !== undefined && currentStep !== null) {
+        stepElement.textContent = currentStep;
+    }
+    
+    // Update Next Stage
+    const nextStage = observation.next_stage || observation.next_stage_name;
+    const nextStageElement = document.getElementById('stat-next-stage');
+    if (nextStageElement) {
+        if (nextStage) {
+            nextStageElement.textContent = nextStage;
+        } else if (observation.done || data.done) {
+            nextStageElement.textContent = 'Complete!';
+        } else {
+            nextStageElement.textContent = '-';
+        }
+    }
+    
+    // Update Reward
+    const reward = observation.reward ?? data.reward;
+    const rewardElement = document.getElementById('stat-reward');
+    if (rewardElement && reward !== undefined && reward !== null) {
+        rewardElement.textContent = typeof reward === 'number' ? reward.toFixed(3) : reward;
+        if (reward > 0) {
+            rewardElement.style.color = '#10b981';
+        } else if (reward < 0) {
+            rewardElement.style.color = '#ef4444';
+        } else {
+            rewardElement.style.color = '#8b5cf6';
+        }
+    }
+}
+
             async function resetEnv() {
                 const outputEl = document.getElementById('output');
                 outputEl.textContent = "🔄 Resetting environment...";
