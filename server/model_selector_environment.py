@@ -111,8 +111,7 @@ class ModelSelectorEnvironment(Environment):
 
         print(f"DEBUG: Reset params received: {params}")
 
-        if params is None:
-            return self._error("No reset parameters provided")
+        
 
         try:
             # Store config directly from EnvInput model
