@@ -29,6 +29,12 @@ Usage:
 import sys
 from pathlib import Path
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import HTTPException
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 try:
     from openenv.core.env_server.http_server import create_app
@@ -71,7 +77,6 @@ app = create_app(
     ModelSelectorObservation,
     env_name="model_selector",
     max_concurrent_envs=1,
-    
 )
 
 # ==========================================================
@@ -97,6 +102,7 @@ def custom_playground():
                 --card: #1e293b;
                 --text: #f8fafc;
                 --accent: #10b981;
+                --error: #ef4444;
             }
             body {
                 font-family: 'Outfit', sans-serif;
@@ -183,6 +189,7 @@ def custom_playground():
             .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.3); }
             .btn-secondary { background: #334155; color: #f1f5f9; }
             .btn-secondary:hover { background: #475569; }
+            .btn-error { background: var(--error); color: white; }
             
             #output {
                 width: 100%;
@@ -194,10 +201,12 @@ def custom_playground():
                 color: #10b981;
                 overflow-x: auto;
                 border: 1px solid #1e293b;
+                max-height: 300px;
+                overflow-y: auto;
             }
             .state-dashboard {
                 display: grid;
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(4, 1fr);
                 gap: 16px;
                 margin-bottom: 24px;
             }
@@ -207,12 +216,18 @@ def custom_playground():
                 padding: 16px;
                 border-radius: 16px;
                 text-align: center;
+                transition: all 0.2s;
+            }
+            .stat-card:hover {
+                background: rgba(139, 92, 246, 0.15);
+                transform: translateY(-2px);
             }
             .stat-value {
                 font-size: 1.2rem;
                 font-weight: 600;
                 color: var(--primary);
                 display: block;
+                margin-bottom: 8px;
             }
             .stat-label {
                 font-size: 0.7rem;
@@ -236,35 +251,44 @@ def custom_playground():
                 font-size: 0.8rem;
                 margin-bottom: 20px;
             }
+            .loading {
+                opacity: 0.7;
+                pointer-events: none;
+            }
+            .error-text {
+                color: var(--error);
+            }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="badge">OpenEnv v0.2.2</div>
-            <h1>AutoML Pipeline Playground</h1>
+            <h1>🤖 AutoML Pipeline Playground</h1>
+            <p class="desc">Interactive environment for automated machine learning pipeline selection</p>
             
-            <!-- State Dashboard -->
             <!-- State Dashboard -->
             <div class="state-dashboard">
                 <div class="stat-card">
                     <span class="stat-label">Current Step</span>
-                    <span id="stat-current-step" class="stat-value">0</span>
+                    <span id="stat-current-step" class="stat-value">-</span>
                 </div>
-
                 <div class="stat-card">
                     <span class="stat-label">Current Stage</span>
-                    <span id="stat-stage" class="stat-value">Not Initialized</span>
+                    <span id="stat-stage" class="stat-value">-</span>
                 </div>
-
                 <div class="stat-card">
-        <span class="stat-label">Next Stage</span>
-        <span id="stat-next-stage" class="stat-value">-</span>
-    </div>
-</div>
+                    <span class="stat-label">Next Stage</span>
+                    <span id="stat-next-stage" class="stat-value">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Reward</span>
+                    <span id="stat-reward" class="stat-value">-</span>
+                </div>
+            </div>
 
             <div class="grid">
                 <div class="section">
-                    <label>1. Reset Environment</label>
+                    <label>📊 1. Reset Environment</label>
                     <textarea id="resetBody" rows="7">{
   "params": {
     "data_path": "data/Salary_dataset.csv",
@@ -273,113 +297,207 @@ def custom_playground():
   }
 }</textarea>
                     <div class="controls">
-                        <button class="btn-primary" onclick="resetEnv()">Execute Reset</button>
+                        <button class="btn-primary" onclick="resetEnv()">🔄 Execute Reset</button>
                     </div>
                 </div>
 
                 <div class="section">
-                    <label>2. Execute Step</label>
+                    <label>⚡ 2. Execute Step</label>
                     <textarea id="stepBody" rows="7">{
   "action": {
     "stage": "cleaning"
   }
 }</textarea>
                     <div class="controls">
-                        <button class="btn-primary" onclick="stepEnv()">Send Action</button>
-                        <button class="btn-secondary" onclick="getState()">Refresh State</button>
+                        <button class="btn-primary" onclick="stepEnv()">🚀 Send Action</button>
+                        <button class="btn-secondary" onclick="getState()">📡 Refresh State</button>
                     </div>
                 </div>
             </div>
 
-            <label>Live API Response</label>
-            <pre id="output">// Responses will appear here...</pre>
+            <label>📝 Live API Response</label>
+            <pre id="output">// Click "Execute Reset" to start the AutoML pipeline...</pre>
 
             <!-- Operation Guide -->
             <div class="guide">
-                <h3>[Documentation] How to use the Pipeline</h3>
+                <h3>📖 Pipeline Documentation</h3>
                 <ul>
-                    <li><strong>Reset:</strong> Start here. Provide a CSV/TXT path. The environment will profile the data and set the stage to <code>cleaning</code>.</li>
-                    <li><strong>Step:</strong> Update the "stage" in the Step box to match the environment's current stage. </li>
-                    <li><strong>Sequence:</strong> Follow the order returned in the <code>next_stage</code> field of the response.</li>
-                    <li><strong>Structure Data (8 Steps):</strong> Cleaning → Encoding → Engineering → Scaling → Selection → Modeling → Tuning → Ensemble.</li>
-                    <li><strong>Text Data (4 Steps):</strong> Cleaning → Model Select → Tuning → Ensemble.</li>
+                    <li><strong>Step 1 - Reset:</strong> Initialize the environment with your dataset configuration</li>
+                    <li><strong>Step 2 - Follow Stages:</strong> The environment will guide you through the pipeline stages</li>
+                    <li><strong>Pipeline Order:</strong> cleaning → encoding → engineering → scaling → selection → modeling → tuning → ensemble</li>
+                    <li><strong>Reward System:</strong> Positive rewards for progress, negative for invalid actions</li>
+                    <li><strong>Termination:</strong> Environment ends when pipeline completes or budget exhausted</li>
                 </ul>
             </div>
         </div>
 
         <script>
+            // Helper function to update dashboard with observation data
+            function updateDashboard(data) {
+                // Extract observation from response
+                const observation = data.observation || data;
+                
+                // Update Current Step
+                const currentStep = observation.current_step ?? observation.step_count ?? data.step_count;
+                if (currentStep !== undefined && currentStep !== null) {
+                    document.getElementById('stat-current-step').textContent = currentStep;
+                }
+                
+                // Update Current Stage
+                const currentStage = observation.current_stage || observation.stage;
+                if (currentStage) {
+                    document.getElementById('stat-stage').textContent = currentStage;
+                }
+                
+                // Update Next Stage
+                const nextStage = observation.next_stage || observation.next_stage_name;
+                if (nextStage) {
+                    document.getElementById('stat-next-stage').textContent = nextStage;
+                } else {
+                    document.getElementById('stat-next-stage').textContent = 'Complete!';
+                }
+                
+                // Update Reward
+                const reward = observation.reward ?? data.reward;
+                if (reward !== undefined && reward !== null) {
+                    const rewardElement = document.getElementById('stat-reward');
+                    rewardElement.textContent = typeof reward === 'number' ? reward.toFixed(3) : reward;
+                    if (reward > 0) {
+                        rewardElement.style.color = '#10b981';
+                    } else if (reward < 0) {
+                        rewardElement.style.color = '#ef4444';
+                    } else {
+                        rewardElement.style.color = '#8b5cf6';
+                    }
+                }
+                
+                // Check if episode is done
+                if (observation.done || data.done) {
+                    document.getElementById('stat-next-stage').textContent = '🏁 Episode Complete';
+                }
+            }
+            
             async function resetEnv() {
-                updateOutput("// Resetting...");
+                const outputEl = document.getElementById('output');
+                outputEl.textContent = "🔄 Resetting environment...";
+                
                 try {
+                    const resetData = JSON.parse(document.getElementById("resetBody").value);
                     const response = await fetch("/reset", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: document.getElementById("resetBody").value
+                        body: JSON.stringify(resetData)
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
                     const data = await response.json();
-                    updateOutput(data);
-                } catch (e) { updateOutput({error: e.message}); }
+                    outputEl.textContent = JSON.stringify(data, null, 2);
+                    updateDashboard(data);
+                    
+                    // Update step body with the current stage
+                    const observation = data.observation || data;
+                    if (observation.current_stage) {
+                        const stepBody = {
+                            action: {
+                                stage: observation.current_stage
+                            }
+                        };
+                        document.getElementById("stepBody").value = JSON.stringify(stepBody, null, 2);
+                    }
+                    
+                } catch (e) {
+                    outputEl.textContent = `❌ Error: ${e.message}`;
+                    console.error('Reset error:', e);
+                }
             }
-
+            
             async function stepEnv() {
-                updateOutput("// Stepping...");
+                const outputEl = document.getElementById('output');
+                outputEl.textContent = "⚡ Executing action...";
+                
                 try {
+                    const stepData = JSON.parse(document.getElementById("stepBody").value);
                     const response = await fetch("/step", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: document.getElementById("stepBody").value
+                        body: JSON.stringify(stepData)
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
                     const data = await response.json();
-                    updateOutput(data);
-                } catch (e) { updateOutput({error: e.message}); }
+                    outputEl.textContent = JSON.stringify(data, null, 2);
+                    updateDashboard(data);
+                    
+                    // Update step body with next stage if available
+                    const observation = data.observation || data;
+                    if (observation.next_stage && observation.next_stage !== 'complete') {
+                        const stepBody = {
+                            action: {
+                                stage: observation.next_stage
+                            }
+                        };
+                        document.getElementById("stepBody").value = JSON.stringify(stepBody, null, 2);
+                    }
+                    
+                    // Check if episode is done
+                    if (observation.done || data.done) {
+                        outputEl.textContent += "\\n\\n✅ Pipeline complete! Run reset to start over.";
+                    }
+                    
+                } catch (e) {
+                    outputEl.textContent = `❌ Error: ${e.message}`;
+                    console.error('Step error:', e);
+                }
             }
-
+            
             async function getState() {
-                updateOutput("// Fetching state...");
+                const outputEl = document.getElementById('output');
+                outputEl.textContent = "📡 Fetching current state...";
+                
                 try {
                     const response = await fetch("/state");
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
                     const data = await response.json();
-                    updateOutput(data);
-                } catch (e) { updateOutput({error: e.message}); }
+                    outputEl.textContent = JSON.stringify(data, null, 2);
+                    updateDashboard(data);
+                    
+                } catch (e) {
+                    outputEl.textContent = `❌ Error: ${e.message}`;
+                    console.error('Get state error:', e);
+                }
             }
-
-            function updateOutput(data) {
-                const el = document.getElementById("output");
-
-                if (typeof data === "string") {
-                    el.textContent = data;
-                    return;
-                }
-
-                el.textContent = JSON.stringify(data, null, 2);
-
-                const obs = data.observation || data;
-
-                // Current Stage
-                const currentStage = obs.current_stage || obs.stage;
-                if (currentStage) {
-                    document.getElementById("stat-stage").textContent = currentStage;
-                }
-
-                // Current Step
-                const currentStep =
-                    obs.current_step ??
-                    data.current_step ??
-                    obs.step_count ??
-                    data.step_count;
-
-                if (currentStep !== undefined) {
-                    document.getElementById("stat-current-step").textContent = currentStep;
-                }
-
-                // Next Stage
-                const nextStage = obs.next_stage || data.next_stage;
-                if (nextStage) {
-                    document.getElementById("stat-next-stage").textContent = nextStage;
+            
+            // Auto-refresh state every 5 seconds (optional)
+            let autoRefresh = false;
+            let refreshInterval;
+            
+            function toggleAutoRefresh() {
+                autoRefresh = !autoRefresh;
+                if (autoRefresh) {
+                    refreshInterval = setInterval(getState, 5000);
+                    console.log('Auto-refresh enabled');
                 } else {
-                    document.getElementById("stat-next-stage").textContent = "-";
+                    if (refreshInterval) {
+                        clearInterval(refreshInterval);
+                        console.log('Auto-refresh disabled');
+                    }
                 }
             }
+            
+            // Load initial state on page load
+            window.addEventListener('load', () => {
+                getState();
+            });
         </script>
     </body>
     </html>
@@ -408,11 +526,15 @@ def main():
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev mode)")
     args = parser.parse_args()
 
+    logger.info(f"Starting Model Selector Environment Server on http://{args.host}:{args.port}")
+    logger.info(f"Playground available at http://{args.host}:{args.port}/playground")
+    
     uvicorn.run(
         "server.app:app" if args.reload else app,
         host=args.host,
         port=args.port,
         reload=args.reload,
+        log_level="info",
     )
 
 
