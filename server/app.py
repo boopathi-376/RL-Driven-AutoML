@@ -322,6 +322,7 @@ def custom_playground():
                 <ul>
                     <li><strong>Step 1 - Reset:</strong> Initialize the environment with your dataset configuration</li>
                     <li><strong>Step 2 - Follow Stages:</strong> The environment will guide you through the pipeline stages</li>
+                    <li><strong>Dataset Types:</strong> For <b>.txt</b> files, <code>target_column</code> is not required (unsupervised)</li>
                     <li><strong>Pipeline Order:</strong> cleaning → encoding → engineering → scaling → selection → modeling → tuning → ensemble</li>
                     <li><strong>Reward System:</strong> Positive rewards for progress, negative for invalid actions</li>
                     <li><strong>Termination:</strong> Environment ends when pipeline completes or budget exhausted</li>
@@ -431,8 +432,8 @@ def custom_playground():
                     
                     // AUTO-UPDATE NEXT ACTION
                     const obs = data.observation || data;
-                    if (obs.next_stage && obs.next_stage !== 'completed') {
-                        const stepBody = { action: { stage: obs.next_stage } };
+                    if (obs.stage && obs.stage !== 'completed') {
+                        const stepBody = { action: { stage: obs.stage } };
                         document.getElementById("stepBody").value = JSON.stringify(stepBody, null, 2);
                     }
                     
