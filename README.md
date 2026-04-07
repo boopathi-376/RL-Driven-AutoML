@@ -23,7 +23,7 @@ tags:
 
 ### [Interactive Playground]
 **Want to try it yourself?** Visit the high-end dashboard to manually orchestrate your pipeline:
-👉 **[Open URL /playground](/playground)**
+👉 **[Open URL /playground](https://huggingface.co/spaces/boopathi-376/RL-Driven-AutoML/playground)**
 
 ---
 
