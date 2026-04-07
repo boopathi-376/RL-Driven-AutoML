@@ -273,12 +273,8 @@ def custom_playground():
                     <span id="stat-current-step" class="stat-value">-</span>
                 </div>
                 <div class="stat-card">
-                    <span class="stat-label">Current Stage</span>
-                    <span id="stat-stage" class="stat-value">-</span>
-                </div>
-                <div class="stat-card">
                     <span class="stat-label">Next Stage</span>
-                    <span id="stat-next-stage" class="stat-value">-</span>
+                    <span id="stat-stage" class="stat-value">-</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Reward</span>
