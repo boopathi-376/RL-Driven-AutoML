@@ -230,7 +230,7 @@ def reset_form_ui():
         try {
             const r = await fetch('/reset', {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ params })
+                body: JSON.stringify(params)
             });
             setOutput(await r.json());
         } catch(e) { setOutput('Error: ' + e.message); }
@@ -243,7 +243,7 @@ def reset_form_ui():
         try {
             const r = await fetch('/step', {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ action: { stage } })
+                body: JSON.stringify({ stage })
             });
             setOutput(await r.json());
         } catch(e) { setOutput('Error: ' + e.message); }
