@@ -60,9 +60,9 @@ app = create_app(
     max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
 )
 
-@app.get("/")
-def home_redirect():
-    return RedirectResponse(url="/playground")
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return custom_playground()
 
 @app.get("/playground", response_class=HTMLResponse)
 def custom_playground():
@@ -276,9 +276,7 @@ def custom_playground():
     </html>
     """
 
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return custom_playground()
+
 def main():
     import argparse
     import uvicorn
