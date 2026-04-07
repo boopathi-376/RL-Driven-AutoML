@@ -40,17 +40,50 @@ def run_task(task: str) -> float:
     """Run one full episode for a given task and return grade score (reward)."""
     try:
         time.sleep(1)
-        # Reset with task query param
-        r = requests.post(f"{BASE_URL}/reset", params={"task": task})
+
+        # ----------------------------------------------------------
+        # Reset payload based on task
+        # ----------------------------------------------------------
+        if task == "easy":
+            reset_payload = {
+                "data_path": "data/Salary_dataset.csv",
+                "target_column": "Salary",
+                "latency_budget": 120.0,
+                "memory_limit_mb": 0.0
+            }
+
+        elif task == "medium":
+            reset_payload = {
+                "data_path": "data/winequality-red.csv",
+                "target_column":"quality",
+                "latency_budget": 120.0,
+                "memory_limit_mb": 0.0
+            }
+
+        else:  # hard
+            reset_payload = {
+                "data_path": "data/train.txt",
+                "latency_budget": 120.0,
+                "memory_limit_mb": 0.0
+            }
+
+        print(f"[DEBUG] Reset payload: {reset_payload}", flush=True)
+
+        # Reset environment
+        r = requests.post(
+            f"{BASE_URL}/reset",
+            json=reset_payload
+        )
         r.raise_for_status()
+
         data = r.json()
-        
+
         # OpenEnv might wrap the observation
         obs = data.get("observation") or data
-        done = bool(obs.get("done", False))
-        
+        done = bool(data.get("done", False))
+
         print(f"[START] task={task}", flush=True)
-        
+
         # Check if reset itself failed
         if obs.get("stage") == "error":
             print(f"[FATAL ERROR] Reset failed for task={task}", flush=True)
@@ -62,43 +95,47 @@ def run_task(task: str) -> float:
 
         while not done:
             step += 1
+
             if not obs or obs.get("stage") == "completed":
                 break
 
-            # The LLM now strictly follows the environment's suggested stage
             action = call_llm(obs)
 
-            # Send action to step endpoint - OpenEnv expects an "action" wrapper
-            r = requests.post(f"{BASE_URL}/step", json={"action": {"stage": action}})
+            r = requests.post(
+                f"{BASE_URL}/step",
+                json={"action": {"stage": action}}
+            )
             r.raise_for_status()
-            
+
             result = r.json()
             obs = result.get("observation") or result
             reward = float(result.get("reward", 0.0))
             done = bool(result.get("done", False))
             total_reward += reward
 
-            # If we hit an error during a step, print full response for debugging
             if obs and obs.get("stage") == "error":
-                print(f"[FATAL ERROR] Step {step} failed: {obs.get('metadata', {}).get('error')}", flush=True)
+                print(f"[FATAL ERROR] Step {step} failed", flush=True)
                 print(f"Full Response: {result}", flush=True)
                 break
 
-            print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()}", flush=True)
-            
+            print(
+                f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()}",
+                flush=True
+            )
+
             if done or step >= 12:
                 break
 
-        # Get final score from grading endpoint
+        # Final score
         gr = requests.get(f"{BASE_URL}/grade", params={"task": task})
         score = gr.json().get("reward", total_reward)
 
         print(f"[END] task={task} score={score:.3f} steps={step}", flush=True)
         return score
+
     except Exception as e:
         print(f"[ERROR] Task {task} failed: {e}", flush=True)
         return 0.0
-
 def main():
     if not API_KEY:
         print("[ERROR] API_KEY (HF_TOKEN) is not set.")
