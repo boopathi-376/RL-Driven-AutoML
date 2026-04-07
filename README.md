@@ -1,6 +1,6 @@
 ---
 title: RL-Driven AutoML Pipeline
-emoji: brain
+emoji: 🧠
 colorFrom: purple
 colorTo: blue
 sdk: docker

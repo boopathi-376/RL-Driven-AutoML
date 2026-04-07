@@ -36,11 +36,18 @@ except Exception as e:  # pragma: no cover
     ) from e
 
 try:
-    from ..models import ModelSelectorAction, ModelSelectorObservation
-    from .model_selector_environment import ModelSelectorEnvironment
-except ModuleNotFoundError:
+    # Try absolute import (best for Docker/Production with PYTHONPATH=/app)
     from models import ModelSelectorAction, ModelSelectorObservation
     from server.model_selector_environment import ModelSelectorEnvironment
+except (ImportError, ValueError):
+    try:
+        # Fallback to local import structure
+        from .model_selector_environment import ModelSelectorEnvironment
+        from ..models import ModelSelectorAction, ModelSelectorObservation
+    except (ImportError, ValueError):
+        # Final fallback for flat local run from within server/
+        from model_selector_environment import ModelSelectorEnvironment
+        from models import ModelSelectorAction, ModelSelectorObservation
 
 
 # Create the app with web interface and README integration

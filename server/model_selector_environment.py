@@ -9,9 +9,15 @@ from openenv.core.env_server.types import State
 
 # Data Models
 try:
-    from ..models import ModelSelectorAction, ModelSelectorObservation, EnvInput
-except ImportError:
+    # Try absolute import first (standard for Docker with PYTHONPATH=/app)
     from models import ModelSelectorAction, ModelSelectorObservation, EnvInput
+except (ImportError, ValueError, ModuleNotFoundError):
+    try:
+        # Fallback to relative if part of a package structure
+        from ..models import ModelSelectorAction, ModelSelectorObservation, EnvInput
+    except (ImportError, ValueError, ModuleNotFoundError):
+        # Final fallback for local development runs
+        from models import ModelSelectorAction, ModelSelectorObservation, EnvInput
 
 # Steps 8 Modules
 from .steps_8.data_cleaning import DataCleaner, CleaningConfig
