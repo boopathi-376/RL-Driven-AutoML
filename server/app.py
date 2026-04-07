@@ -276,7 +276,9 @@ def custom_playground():
     </html>
     """
 
-
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return custom_playground()
 def main():
     import argparse
     import uvicorn
