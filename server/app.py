@@ -27,10 +27,11 @@ Usage:
 """
 
 import sys
+import logging
 from pathlib import Path
+from typing import Optional, Dict, Any
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi import HTTPException
-import logging
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
