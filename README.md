@@ -14,7 +14,7 @@ tags:
   - scikit-learn
 ---
 
-# 🧠 RL-Driven AutoML: An Intelligent ML Model Selector
+# [Brain] RL-Driven AutoML: An Intelligent ML Model Selector
 
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-Compatible-brightgreen)](https://github.com/meta-pytorch/OpenEnv)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/boopathi-376/RL-Driven-AutoML)
@@ -24,87 +24,79 @@ tags:
 
 ---
 
-## 🌟 The Core Concept: "The Virtual ML Engineer"
+## [Concept] The Core Concept: "The Virtual ML Engineer"
 
 Traditional AutoML takes an input and returns an output. **RL-Driven AutoML** simulates the human workflow through a structured pipeline. At each stage, the agent makes a strategic decision:
 
 1.  **Observe**: Dataset metadata, distributions, and statistics.
-2.  **Decide**: Select the next processing step (e.g., *"Should I use Polynomial Features?"*).
+2.  **Decide**: Select the next processing step (e.g., "Should I use Polynomial Features?").
 3.  **Execute**: Apply the action and observe the transformation.
 4.  **Evaluate**: Measure final model performance vs. resource usage (latency/memory).
 5.  **Learn**: Optimize the strategy for future unseen datasets.
 
 ---
 
-## 🛤️ The Intelligent Pipeline Workflow
+## [Workflow] The Intelligent Pipeline Workflow
 
 For structured data, the environment enforces an 8-stage "Sequential Decision Process". For raw text data, it automatically simplifies to a 4-stage specialized text pipeline.
 
-```mermaid
-graph LR
-    S1[1. Cleaning] --> S2[2. Encoding]
-    S2 --> S3[3. Engineering]
-    S3 --> S4[4. Scaling]
-    S4 --> S5[5. Selection]
-    S5 --> S6[6. Modeling]
-    S6 --> S7[7. Tuning]
-    S7 --> S8[8. Ensemble]
-```
+[Pipeline Diagram]
+1. Cleaning -> 2. Encoding -> 3. Engineering -> 4. Scaling -> 5. Selection -> 6. Modeling -> 7. Tuning -> 8. Ensemble
 
 ---
 
-## 🏗️ Environment Architecture
+## [Architecture] Environment Architecture
 
 ```text
-                ┌──────────────────────┐
-                │     RL Agent         │
-                │ (Decision Maker)     │
-                └──────────┬───────────┘
-                           │
+                +----------------------+
+                |     RL Agent         |
+                | (Decision Maker)     |
+                +----------+-----------+
+                           |
                       Action (JSON)
-                           │
-                           ▼
-    ┌──────────────────────────────────────────────────┐
-    │         OpenEnv Environment (FastAPI)            │
-    │  ────────────────────────────────────────────    │
-    │                                                  │
-    │  ┌──────────────────────────────────────────┐   │
-    │  │      FastAPI /step Endpoint              │   │
-    │  └──────────────────┬───────────────────────┘   │
-    │                     │                           │
-    │         ┌───────────▼──────────┐                │
-    │         │   State Manager      │                │
-    │         │  (Pipeline Tracker)  │                │
-    │         └───────┬──────────┬───┘                │
-    │                 │          │                    │
-    │         ┌───────▼────┐ ┌───▼──────┐             │
-    │         │Data Engine │ │Reward    │             │
-    │         │(Processing)│ │Engine    │             │
-    │         └───────┬────┘ │(Scoring) │             │
-    │                 │      └───┬──────┘             │
-    │         ┌───────▼────┐    │                     │
-    │         │Internal    │────┘                     │
-    │         │State       │                          │
-    │         └───────┬────┘                          │
-    │                 │                               │
-    │         ┌───────▼──────────┐                    │
-    │         │Observation       │                    │
-    │         │Generator         │                    │
-    │         └───────┬──────────┘                    │
-    └─────────────────┼──────────────────────────────┘
-                      │
+                           |
+                           v
+    +--------------------------------------------------+
+    |         OpenEnv Environment (FastAPI)            |
+    |  --------------------------------------------    |
+    |                                                  |
+    |  +------------------------------------------+   |
+    |  |      FastAPI /step Endpoint              |   |
+    |  +------------------+-----------------------+   |
+    |                     |                           |
+    |         +-----------v----------+                |
+    |         |   State Manager      |                |
+    |         |  (Pipeline Tracker)  |                |
+    |         +-------+----------+---+                |
+    |                 |          |                    |
+    |         +-------v----+ +---v------+             |
+    |         |Data Engine | |Reward    |             |
+    |         |(Processing)| |Engine    │             |
+    |         +-------+----+ |(Scoring) |             |
+    |                 |      +---+------+             |
+    |         +-------v----+     |                     |
+    |         |Internal    |-----+                     |
+    |         |State       |                           |
+    |         +-------+----+                           |
+    |                 |                                |
+    |         +-------v----------+                     |
+    |         |Observation       |                     |
+    |         |Generator         |                     |
+    |         +-------+----------+                     |
+    +-----------------v--------------------------------+
+                      |
                 Observation + Reward
-                      │
-                      ▼
-                ┌──────────────────┐
-                │    RL Agent      │
-                │  (Learns Policy) │
-                └──────────────────┘
+                      |
+                      v
+                +------------------+
+                |    RL Agent      |
+                |  (Learns Policy) |
+                +------------------+
 ```
 
 ---
 
-## 🛰️ API Endpoints
+## [API] API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -116,9 +108,9 @@ graph LR
 
 ---
 
-## 🛠️ RL Environment Specifications
+## [Spec] RL Environment Specifications
 
-### 📊 Observation Space
+### [Observation] Observation Space
 ```json
 {
   "stage": "encoding",
@@ -133,9 +125,9 @@ graph LR
 }
 ```
 
-### 🏆 Reward System
+### [Reward] Reward System
 Rewards are calculated dynamically based on:
-`Reward = Val_Score + (0.2 × Improvement) - (0.3 × Overfit_Gap) - Latency_Penalty`
+`Reward = Val_Score + (0.2 * Improvement) - (0.3 * Overfit_Gap) - Latency_Penalty`
 
 | Scenario | Reward Signal | Reason |
 |----------|---------------|--------|
@@ -146,9 +138,9 @@ Rewards are calculated dynamically based on:
 
 ---
 
-## 🚀 Getting Started
+## [Deploy] Getting Started
 
-### 1. Clone & Install
+### 1. Clone and Install
 ```bash
 git clone https://github.com/boopathi-376/RL-Driven-AutoML.git
 cd RL-Driven-AutoML
@@ -168,29 +160,29 @@ uv run python inference.py
 
 ---
 
-## 📂 Project Structure
+## [Folder] Project Structure
 
 ```text
 RL-Driven-AutoML/
-├── server/
-│   ├── steps_8/        # Core ML Processing Engine
-│   ├── app.py          # FastAPI Server Scaffolding
-│   └── model_selector_environment.py # Environment Logic
-├── data/               # Benchmark Datasets (CSV/TXT)
-├── models.py           # Pydantic Action/Observation schemas
-├── client.py           # OpenEnv WebSocket Client
-├── inference.py        # LLM-based Agent Reference Implementation
-├── openenv.yaml        # environment manifest
-└── Dockerfile          # Container configuration
+|-- server/
+|   |-- steps_8/        # Core ML Processing Engine
+|   |-- app.py          # FastAPI Server Scaffolding
+|   `-- model_selector_environment.py # Environment Logic
+|-- data/               # Benchmark Datasets (CSV/TXT)
+|-- models.py           # Pydantic Action/Observation schemas
+|-- client.py           # OpenEnv WebSocket Client
+|-- inference.py        # LLM-based Agent Reference Implementation
+|-- openenv.yaml        # environment manifest
+`-- Dockerfile          # Container configuration
 ```
 
 ---
 
-## 🤝 Contributing
+## [Team] Contributing
 We welcome contributions! Please fork the repository and open a Pull Request for any feature additions or optimizations.
 
-## 🔮 Future Roadmap
-- [ ] **Multi-Agent Collaboration** — Separate agents for Data Cleaning vs. Modeling.
-- [ ] **Explainable AI** — Agent provides text reasoning for its actions.
-- [ ] **Optuna Integration** — Advanced Bayesian hyperparameter search.
-- [ ] **Visualization Dashboard** — Real-time training monitoring.
+## [Roadmap] Future Roadmap
+- [ ] Multi-Agent Collaboration -- Separate agents for Data Cleaning vs. Modeling.
+- [ ] Explainable AI -- Agent provides text reasoning for its actions.
+- [ ] Optuna Integration -- Advanced Bayesian hyperparameter search.
+- [ ] Visualization Dashboard -- Real-time training monitoring.
