@@ -63,7 +63,6 @@ app = create_app(
     ModelSelectorAction,
     ModelSelectorObservation,
     env_name="model_selector",
-    reset_input_model=EnvInput,
     max_concurrent_envs=1,
 )
 
