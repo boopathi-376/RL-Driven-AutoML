@@ -244,20 +244,23 @@ def custom_playground():
             <h1>AutoML Pipeline Playground</h1>
             
             <!-- State Dashboard -->
+            <!-- State Dashboard -->
             <div class="state-dashboard">
+                <div class="stat-card">
+                    <span class="stat-label">Current Step</span>
+                    <span id="stat-current-step" class="stat-value">0</span>
+                </div>
+
                 <div class="stat-card">
                     <span class="stat-label">Current Stage</span>
                     <span id="stat-stage" class="stat-value">Not Initialized</span>
                 </div>
+
                 <div class="stat-card">
-                    <span class="stat-label">Steps Taken</span>
-                    <span id="stat-steps" class="stat-value">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Latest Reward</span>
-                    <span id="stat-reward" class="stat-value">0.00</span>
-                </div>
-            </div>
+        <span class="stat-label">Next Stage</span>
+        <span id="stat-next-stage" class="stat-value">-</span>
+    </div>
+</div>
 
             <div class="grid">
                 <div class="section">
@@ -342,22 +345,39 @@ def custom_playground():
 
             function updateOutput(data) {
                 const el = document.getElementById("output");
-                if (typeof data === 'string') {
+
+                if (typeof data === "string") {
                     el.textContent = data;
+                    return;
+                }
+
+                el.textContent = JSON.stringify(data, null, 2);
+
+                const obs = data.observation || data;
+
+                // Current Stage
+                const currentStage = obs.current_stage || obs.stage;
+                if (currentStage) {
+                    document.getElementById("stat-stage").textContent = currentStage;
+                }
+
+                // Current Step
+                const currentStep =
+                    obs.current_step ??
+                    data.current_step ??
+                    obs.step_count ??
+                    data.step_count;
+
+                if (currentStep !== undefined) {
+                    document.getElementById("stat-current-step").textContent = currentStep;
+                }
+
+                // Next Stage
+                const nextStage = obs.next_stage || data.next_stage;
+                if (nextStage) {
+                    document.getElementById("stat-next-stage").textContent = nextStage;
                 } else {
-                    el.textContent = JSON.stringify(data, null, 2);
-                    
-                    // Update Dashboard Metrics
-                    const obs = data.observation || data;
-                    if (obs.current_stage || obs.stage) {
-                        document.getElementById("stat-stage").textContent = obs.current_stage || obs.stage;
-                    }
-                    if (data.step_count !== undefined) {
-                        document.getElementById("stat-steps").textContent = data.step_count;
-                    }
-                    if (data.reward !== undefined) {
-                        document.getElementById("stat-reward").textContent = data.reward.toFixed(4);
-                    }
+                    document.getElementById("stat-next-stage").textContent = "-";
                 }
             }
         </script>
