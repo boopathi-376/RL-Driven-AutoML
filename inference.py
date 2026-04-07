@@ -4,7 +4,7 @@ import sys
 import requests
 from typing import List, Optional, Dict, Any
 from openai import OpenAI
-
+import time
 # ==========================================================
 # WINDOWS ASYNCIO FIX (Prevents SSL / Loop closed errors)
 # ==========================================================
@@ -13,7 +13,7 @@ if sys.platform == 'win32' and sys.version_info < (3, 11):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # ── Config — uses hackathon injected environment variables ─────────────────────
-BASE_URL = os.getenv("ENV_BASE_URL") or os.getenv("ENV_URL") or "http://127.0.0.1:7860"
+BASE_URL = os.getenv("ENV_BASE_URL") or os.getenv("ENV_URL") or "https://boopathi376-rl-driven-automl.hf.space"
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
@@ -28,61 +28,48 @@ client = OpenAI(
 )
 
 def call_llm(obs: dict) -> str:
-    """Ask LLM which action to take given current observation."""
+    """Follow the environment's suggested stage strictly."""
     current_stage = obs.get("stage")
-    next_stage_hint = obs.get("next_stage")
-    task_type = obs.get("task_type")
+    if not current_stage or current_stage == "completed":
+        return "completed"
     
-    prompt = f"""You are an AutoML RL agent. 
-Current Observation:
-- Stage to execute: {current_stage}
-- Task Type: {task_type}
-- Suggested Next: {next_stage_hint}
-
-Available stages: {', '.join(STAGES)}
-
-Reply with ONLY the exact name of the current stage to execute ({current_stage}), nothing else."""
-
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=20,
-            temperature=0.0,
-        )
-        action = response.choices[0].message.content.strip().lower()
-        if action in STAGES:
-            return action
-    except Exception as e:
-        print(f"LLM error: {e}", flush=True)
-
-    return current_stage if current_stage in STAGES else STAGES[0]
+    # We follow the environment's suggested step exactly as requested
+    return current_stage
 
 def run_task(task: str) -> float:
     """Run one full episode for a given task and return grade score (reward)."""
     try:
+        time.sleep(1)
         # Reset with task query param
         r = requests.post(f"{BASE_URL}/reset", params={"task": task})
         r.raise_for_status()
         data = r.json()
-        obs = data.get("observation") or data
         
-        done = False
+        # OpenEnv might wrap the observation
+        obs = data.get("observation") or data
+        done = bool(obs.get("done", False))
+        
+        print(f"[START] task={task}", flush=True)
+        
+        # Check if reset itself failed
+        if obs.get("stage") == "error":
+            print(f"[FATAL ERROR] Reset failed for task={task}", flush=True)
+            print(f"Full Response: {data}", flush=True)
+            return 0.0
+
         step = 0
         total_reward = 0.0
-
-        print(f"[START] task={task}", flush=True)
 
         while not done:
             step += 1
             if not obs or obs.get("stage") == "completed":
                 break
 
+            # The LLM now strictly follows the environment's suggested stage
             action = call_llm(obs)
 
-            # Send action to step endpoint
-            # My server expects ModelSelectorAction which has a 'stage' field
-            r = requests.post(f"{BASE_URL}/step", json={"stage": action})
+            # Send action to step endpoint - OpenEnv expects an "action" wrapper
+            r = requests.post(f"{BASE_URL}/step", json={"action": {"stage": action}})
             r.raise_for_status()
             
             result = r.json()
@@ -91,9 +78,15 @@ def run_task(task: str) -> float:
             done = bool(result.get("done", False))
             total_reward += reward
 
+            # If we hit an error during a step, print full response for debugging
+            if obs and obs.get("stage") == "error":
+                print(f"[FATAL ERROR] Step {step} failed: {obs.get('metadata', {}).get('error')}", flush=True)
+                print(f"Full Response: {result}", flush=True)
+                break
+
             print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()}", flush=True)
             
-            if done or step >= 10:
+            if done or step >= 12:
                 break
 
         # Get final score from grading endpoint

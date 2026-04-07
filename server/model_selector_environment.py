@@ -474,15 +474,15 @@ class ModelSelectorEnvironment(Environment):
         print(f"--- ENVIRONMENT ERROR: {msg} ---")
         return ModelSelectorObservation(
             stage="error",
-            task_type="unknown",           # Mandatory field
-            dataset_profile={},            # Mandatory field
-            partial_pipeline={},           # Mandatory field
-            latency_budget=0.0,            # Mandatory field
-            memory_limit_mb=0.0,           # Mandatory field
-            progress=0.0,                  # Mandatory field
-            reward=-1.0,                   # Provided
-            done=True,                     # Provided
-            metadata={"error": str(msg)}   # Provided
+            task_type="error",
+            dataset_profile={"error": str(msg)},  # Pass error here for visibility
+            partial_pipeline={},
+            latency_budget=0.0,
+            memory_limit_mb=0.0,
+            progress=0.0,
+            reward=-1.0,
+            done=True,
+            metadata={"error": str(msg)}
         )
 
     @property
