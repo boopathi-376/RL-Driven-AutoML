@@ -65,16 +65,15 @@ _shared_env = ModelSelectorEnvironment()
 def get_shared_env():
     return _shared_env
 
-# Create the app with web interface and README integration
 app = create_app(
     get_shared_env,
     ModelSelectorAction,
     ModelSelectorObservation,
     env_name="model_selector",
     max_concurrent_envs=1,
-    display={
+    metadata={  # Changed 'display' to 'metadata'
         "title": "RL-Driven AutoML",
-        "description": "Interactive AutoML environment for testing dataset preprocessing, feature engineering, model selection, tuning, and ensemble workflows.",
+        "description": "Interactive AutoML environment...",
         "playground_url": "/playground",
         "docs_url": "/docs"
     }
