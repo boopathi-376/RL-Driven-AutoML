@@ -36,6 +36,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ==========================================================
+# ROBUST PATH HANDLING (Fixes Docker/Production Imports)
+# ==========================================================
+# Add project root to sys.path to allow absolute imports
+project_root = str(Path(__file__).resolve().parent.parent)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 try:
     from openenv.core.env_server.http_server import create_app
 except ImportError as e:
@@ -43,22 +51,12 @@ except ImportError as e:
         "openenv is required for the web interface. Install dependencies with '\n    uv sync\n'"
     ) from e
 
-# Robust import handling for models and environment
+# Standard imports
+from models import ModelSelectorAction, ModelSelectorObservation
 try:
-    # Try direct package-relative imports first
-    from ..models import ModelSelectorAction, ModelSelectorObservation
-    from .model_selector_environment import ModelSelectorEnvironment
-except (ModuleNotFoundError, ImportError, ValueError):
-    # Fallback: Insert project root into sys.path
-    project_root = str(Path(__file__).resolve().parent.parent)
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-    
-    from models import ModelSelectorAction, ModelSelectorObservation
-    try:
-        from server.model_selector_environment import ModelSelectorEnvironment
-    except ImportError:
-        from model_selector_environment import ModelSelectorEnvironment
+    from server.model_selector_environment import ModelSelectorEnvironment
+except ImportError:
+    from model_selector_environment import ModelSelectorEnvironment
 
 
 # ==========================================================

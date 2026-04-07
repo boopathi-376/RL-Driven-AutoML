@@ -7,7 +7,15 @@ from openai import OpenAI
 from client import ModelSelectorEnv
 from models import ModelSelectorAction
 
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+
+def check_keys():
+    if not API_KEY:
+        print("\n[ERROR] API key missing!")
+        print("Please set your Hugging Face Token (with 'inference' access) or OpenAI key:")
+        print("    $env:HF_TOKEN = \"your_token_here\"\n")
+        return False
+    return True
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 
@@ -80,6 +88,9 @@ def print_step_summary(step_outputs: List[Dict[str, Any]]) -> None:
 
 
 async def main() -> None:
+    if not check_keys():
+        return
+
     client = OpenAI(
         base_url=API_BASE_URL,
         api_key=API_KEY,
