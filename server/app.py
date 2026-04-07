@@ -71,12 +71,7 @@ app = create_app(
     ModelSelectorObservation,
     env_name="model_selector",
     max_concurrent_envs=1,
-    metadata={  # Changed 'display' to 'metadata'
-        "title": "RL-Driven AutoML",
-        "description": "Interactive AutoML environment...",
-        "playground_url": "/playground",
-        "docs_url": "/docs"
-    }
+    
 )
 
 # ==========================================================
