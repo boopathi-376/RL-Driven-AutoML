@@ -113,8 +113,22 @@ async def reset(params: Optional[Dict[str, Any]] = None, task: Optional[str] = N
     """Resets the environment. Supports task-based reset via query param or JSON body."""
     if params is None:
         params = {}
-    if task:
-        params["task"] = task
+    
+    # Priority 1: Query param 'task'
+    # Priority 2: JSON body 'task'
+    current_task = task or params.get("task")
+    
+    if current_task:
+        if current_task == "easy":
+            params["data_path"] = "data/Salary_dataset.csv"
+            params["target_column"] = "Salary"
+        elif current_task == "medium":
+            params["data_path"] = "data/winequality-red.csv"
+            params["target_column"] = "quality"
+        elif current_task == "hard":
+            params["data_path"] = "data/train.txt"
+            params["target_column"] = None
+            
     return _shared_env.reset(params)
 
 @app.get("/", include_in_schema=False)
