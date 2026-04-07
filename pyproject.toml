@@ -1,0 +1,92 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# pyproject.toml — model_selector OpenEnv environment
+#
+# This environment runs an 8-stage AutoML pipeline:
+#   1. cleaning      → DataCleaner      (data_cleaning.py)
+#   2. encoding      → DataEncoder      (encoding.py)
+#   3. engineering   → FeatureEngineer  (feature_engineering.py)
+#   4. scaling       → DataScaler       (scaling.py)
+#   5. selection     → FeatureSelector  (feature_selection.py)
+#   6. model_select  → SmartModelSelector (model_selection.py)
+#   7. tuning        → HyperparamTuner  (hyperparameter_tuning.py)
+#   8. ensemble      → EnsembleBuilder  (ensemble.py)
+#
+# Served via FastAPI + WebSocket using openenv-core.
+# Client talks to the server through client.py / inference.py.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-model_selector"
+version = "0.1.0"
+description = "8-stage AutoML pipeline environment for OpenEnv (model selector)"
+requires-python = ">=3.10"
+dependencies = [
+    # ── OpenEnv runtime ──────────────────────────────────────────────────────
+    # Provides the FastAPI server scaffold, WebSocket session manager,
+    # and EnvClient base used by client.py to talk to the server.
+    "openenv-core[core]>=0.2.2",
+
+    # ── Data handling (steps 1–5 & environment reset) ─────────────────────
+    # numpy/pandas: core data structures throughout all 8 pipeline stages.
+    # scipy:        sparse matrix support in scaling, selection, model_select.
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "scipy>=1.10.0",
+
+    # ── Machine learning (steps 2–8) ─────────────────────────────────────
+    # scikit-learn powers all pipeline steps:
+    #   encoding      → OneHotEncoder, OrdinalEncoder, TfidfVectorizer
+    #   engineering   → PolynomialFeatures
+    #   scaling       → StandardScaler, MinMaxScaler, RobustScaler
+    #   selection     → VarianceThreshold, SelectKBest, RandomForest (importance)
+    #   model_select  → LogisticRegression, SGDClassifier, DecisionTree,
+    #                    RandomForest, LinearRegression, MultinomialNB
+    #   tuning        → train_test_split, cross_val_score
+    #   ensemble      → VotingClassifier/Regressor, StackingClassifier/Regressor
+    "scikit-learn>=1.7.2",
+
+    # ── LLM client (inference.py) ─────────────────────────────────────────
+    # Used to call the Qwen/HuggingFace router API that drives the agent
+    # choosing which pipeline action to take at each step.
+    "openai>=1.0.0",
+
+    # ── HTTP / WebSocket transport ────────────────────────────────────────
+    # httpx: async HTTP client used by openenv EnvClient for reset/step calls.
+    "httpx>=0.25.0",
+
+    # ── ASGI server ───────────────────────────────────────────────────────
+    # uvicorn runs the FastAPI app defined in server/app.py.
+    # Start with:  uv run server   or   uvicorn server.app:app --port 8000
+    "uvicorn>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Unit testing for pipeline stages and environment lifecycle
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+# Entrypoint registered by uv / pip install.
+# Run the FastAPI server with:   uv run server
+# or directly:                   python -m model_selector.server.app
+server = "model_selector.server.app:main"
+
+[tool.setuptools]
+include-package-data = true
+# Maps the package namespace so both import paths work:
+#   import model_selector        → root of the project (.)
+#   import model_selector.server → server/ subdirectory
+packages = ["model_selector", "model_selector.server"]
+package-dir = { "model_selector" = ".", "model_selector.server" = "server" }
