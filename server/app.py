@@ -68,7 +68,7 @@ app = create_app(
 
 from fastapi.responses import HTMLResponse
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/reset-form", response_class=HTMLResponse, include_in_schema=False)
 def reset_form_ui():
     """Simple default Reset UI - form-based interface for the /reset endpoint."""
     return """<!DOCTYPE html>
