@@ -222,7 +222,7 @@ class ModelSelectorEnvironment(Environment):
             print(f"DEBUG stages: {self.stages}")
             print(f"--- RESET SUCCESS: Loaded {self.X.shape} ---")
 
-            return self._build_obs(done=False, reward=0.0)
+            return self._build_obs(done=False, reward=0.01)
 
         except Exception as e:
             return self._error(f"Reset failed: {str(e)}")
@@ -410,7 +410,7 @@ class ModelSelectorEnvironment(Environment):
         if abs(train_score - val_score) < 0.05: reward += 0.05
         
         self.prev_score = val_score
-        return float(np.clip(reward, -1, 1))
+        return float(np.clip(reward, 0.01, 0.99))
 
     def _build_obs(self, done: bool, reward: float) -> ModelSelectorObservation:
         idx = self.current_stage_idx
@@ -463,7 +463,7 @@ class ModelSelectorEnvironment(Environment):
             latency_budget=0.0,            # Mandatory field
             memory_limit_mb=0.0,           # Mandatory field
             progress=0.0,                  # Mandatory field
-            reward=-1.0,                   # Provided
+            reward=0.01,                   # Provided (Strict Range)
             done=True,                     # Provided
             metadata={"error": str(msg)}   # Provided
         )

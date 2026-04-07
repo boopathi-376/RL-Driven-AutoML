@@ -91,17 +91,23 @@ def grade_task(task: str = "easy"):
     try:
         state = _shared_env.state
         is_done = state.get("done", False)
-        reward = state.get("reward", 0.0)
+        
+        # Mandatory Range Clamping (Strictly 0.01 - 0.99)
+        raw_reward = state.get("reward", 0.01)
+        reward = min(max(float(raw_reward), 0.01), 0.99)
+        
+        raw_score = state.get("val_score", 0.01)
+        score = min(max(float(raw_score), 0.01), 0.99)
         
         # Simple grading logic: reward must be positive and pipeline done
-        success = is_done and reward >= 0.0
+        success = is_done and reward >= 0.01
         
         return {
             "success": success,
             "task": task,
             "reward": reward,
             "done": is_done,
-            "score": state.get("val_score", 0.0),
+            "score": score,
             "stage": state.get("current_stage", "unknown")
         }
     except Exception as e:
