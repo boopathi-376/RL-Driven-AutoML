@@ -17,8 +17,15 @@ tags:
 # [Brain] RL-Driven AutoML: An Intelligent ML Model Selector
 
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-Compatible-brightgreen)](https://github.com/meta-pytorch/OpenEnv)
+[![License: BSD](https://img.shields.io/badge/License-BSD-yellow.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/boopathi-376/RL-Driven-AutoML)
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Space-Live%20Demo-yellow)](https://huggingface.co/spaces/boopathi-376/RL-Driven-AutoML)
+
+### [Interactive Playground]
+**Want to try it yourself?** Visit the high-end dashboard to manually orchestrate your pipeline:
+👉 **[Open URL /playground](/playground)**
+
+---
 
 **RL-Driven AutoML** is an interactive environment designed for the **OpenEnv** ecosystem. Unlike static AutoML tools that output a single recommendation, this project treats the machine learning workflow as a **Sequential Decision Process**. It enables Reinforcement Learning (RL) agents to interact with datasets, perform strategic actions (cleaning, encoding, selecting), and receive rewards based on their ability to build high-performing, efficient pipelines.
 
@@ -186,3 +193,8 @@ We welcome contributions! Please fork the repository and open a Pull Request for
 - [ ] Explainable AI -- Agent provides text reasoning for its actions.
 - [ ] Optuna Integration -- Advanced Bayesian hyperparameter search.
 - [ ] Visualization Dashboard -- Real-time training monitoring.
+
+---
+### [Get Started Now]
+Ready to build your first pipeline? 
+🚀 **[Launch the Interactive AutoML Playground](/playground)**
