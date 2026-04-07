@@ -1,155 +1,244 @@
 import asyncio
 import os
 import sys
-import requests
-from typing import List, Optional, Dict, Any
-from openai import OpenAI
 import time
+from typing import List, Optional
+
+import requests
+from openai import OpenAI
+
 # ==========================================================
-# WINDOWS ASYNCIO FIX (Prevents SSL / Loop closed errors)
+# WINDOWS ASYNCIO FIX
 # ==========================================================
-if sys.platform == 'win32' and sys.version_info < (3, 11):
-    import asyncio
+if sys.platform == "win32" and sys.version_info < (3, 11):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# ── Config — uses hackathon injected environment variables ─────────────────────
-BASE_URL = os.getenv("ENV_BASE_URL") or os.getenv("ENV_URL") or "https://boopathi376-rl-driven-automl.hf.space"
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
+# ==========================================================
+# REQUIRED ENV VARIABLES
+# ==========================================================
+HF_TOKEN = os.getenv("HF_TOKEN")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 
+# Environment URL
+BASE_URL = os.getenv(
+    "ENV_BASE_URL",
+    "https://boopathi376-rl-driven-automl.hf.space"
+)
+
+BENCHMARK = "rl_driven_automl"
 TASKS = ["easy", "medium", "hard"]
-STAGES = ["cleaning", "encoding", "engineering", "scaling", "selection", "model_select", "tuning", "ensemble"]
+MAX_STEPS = 8
+SUCCESS_SCORE_THRESHOLD = 0.5
 
-# Initialize OpenAI client with hackathon LiteLLM proxy
+# ==========================================================
+# OPENAI CLIENT
+# ==========================================================
 client = OpenAI(
-    api_key=API_KEY,
+    api_key=HF_TOKEN,
     base_url=API_BASE_URL,
 )
 
+# ==========================================================
+# LOGGING HELPERS
+# ==========================================================
+def log_start(task: str, env: str, model: str) -> None:
+    print(
+        f"[START] task={task} env={env} model={model}",
+        flush=True,
+    )
+
+
+def log_step(
+    step: int,
+    action: str,
+    reward: float,
+    done: bool,
+    error: Optional[str],
+) -> None:
+    error_val = error if error else "null"
+    done_val = str(done).lower()
+
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        flush=True,
+    )
+
+
+def log_end(
+    success: bool,
+    steps: int,
+    score: float,
+    rewards: List[float],
+) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+
+    print(
+        f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
+        flush=True,
+    )
+
+# ==========================================================
+# LLM POLICY
+# ==========================================================
 def call_llm(obs: dict) -> str:
-    """Follow the environment's suggested stage strictly."""
+    """
+    Uses the observation stage directly.
+    This keeps the environment deterministic and follows
+    the expected next pipeline stage exactly.
+    """
     current_stage = obs.get("stage")
-    if not current_stage or current_stage == "completed":
+
+    if not current_stage:
+        return "cleaning"
+
+    if current_stage == "completed":
         return "completed"
-    
-    # We follow the environment's suggested step exactly as requested
+
     return current_stage
 
-def run_task(task: str) -> float:
-    """Run one full episode for a given task and return grade score (reward)."""
-    try:
-        time.sleep(1)
-
-        # ----------------------------------------------------------
-        # Reset payload based on task
-        # ----------------------------------------------------------
-        if task == "easy":
-            reset_payload = {
+# ==========================================================
+# TASK CONFIGS
+# ==========================================================
+def get_reset_payload(task: str) -> dict:
+    if task == "easy":
+        return {
+            "params": {
                 "data_path": "data/Salary_dataset.csv",
                 "target_column": "Salary",
                 "latency_budget": 120.0,
-                "memory_limit_mb": 0.0
+                "memory_limit_mb": 0.0,
             }
+        }
 
-        elif task == "medium":
-            reset_payload = {
+    elif task == "medium":
+        return {
+            "params": {
                 "data_path": "data/winequality-red.csv",
-                "target_column":"quality",
+                "target_column": "quality",
                 "latency_budget": 120.0,
-                "memory_limit_mb": 0.0
+                "memory_limit_mb": 0.0,
             }
+        }
 
-        else:  # hard
-            reset_payload = {
-                "data_path": "data/train.txt",
-                "latency_budget": 120.0,
-                "memory_limit_mb": 0.0
-            }
+    return {
+        "params": {
+            "data_path": "data/train.txt",
+            "latency_budget": 120.0,
+            "memory_limit_mb": 0.0,
+        }
+    }
 
-        print(f"[DEBUG] Reset payload: {reset_payload}", flush=True)
+# ==========================================================
+# RUN ONE TASK
+# ==========================================================
+def run_task(task: str) -> float:
+    rewards: List[float] = []
+    steps_taken = 0
+    score = 0.0
+    success = False
+
+    log_start(task=task, env=BENCHMARK, model=MODEL_NAME)
+
+    try:
+        reset_payload = get_reset_payload(task)
 
         # Reset environment
-        r = requests.post(
+        reset_response = requests.post(
             f"{BASE_URL}/reset",
-            json=reset_payload
+            json=reset_payload,
+            timeout=60,
         )
-        r.raise_for_status()
+        reset_response.raise_for_status()
 
-        data = r.json()
+        reset_result = reset_response.json()
+        obs = reset_result.get("observation") or reset_result
+        done = bool(reset_result.get("done", False))
 
-        # OpenEnv might wrap the observation
-        obs = data.get("observation") or data
-        done = bool(data.get("done", False))
-
-        print(f"[START] task={task}", flush=True)
-
-        # Check if reset itself failed
         if obs.get("stage") == "error":
-            print(f"[FATAL ERROR] Reset failed for task={task}", flush=True)
-            print(f"Full Response: {data}", flush=True)
-            return 0.0
+            raise RuntimeError(f"Reset failed: {obs}")
 
-        step = 0
-        total_reward = 0.0
-
-        while not done:
-            step += 1
-
-            if not obs or obs.get("stage") == "completed":
+        # Step loop
+        for step in range(1, MAX_STEPS + 1):
+            if done:
                 break
 
             action = call_llm(obs)
 
-            r = requests.post(
+            step_response = requests.post(
                 f"{BASE_URL}/step",
-                json={"action": {"stage": action}}
+                json={
+                    "action": {
+                        "stage": action
+                    }
+                },
+                timeout=60,
             )
-            r.raise_for_status()
+            step_response.raise_for_status()
 
-            result = r.json()
+            result = step_response.json()
+
             obs = result.get("observation") or result
             reward = float(result.get("reward", 0.0))
             done = bool(result.get("done", False))
-            total_reward += reward
 
-            if obs and obs.get("stage") == "error":
-                print(f"[FATAL ERROR] Step {step} failed", flush=True)
-                print(f"Full Response: {result}", flush=True)
-                break
+            rewards.append(reward)
+            steps_taken = step
 
-            print(
-                f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()}",
-                flush=True
+            error = None
+            if obs.get("stage") == "error":
+                error = obs.get("metadata", {}).get("error", "step_failed")
+
+            log_step(
+                step=step,
+                action=action,
+                reward=reward,
+                done=done,
+                error=error,
             )
 
-            if done or step >= 12:
+            if done:
                 break
 
-        # Final score
-        gr = requests.get(f"{BASE_URL}/grade", params={"task": task})
-        score = gr.json().get("reward", total_reward)
+        # Score normalized to [0,1]
+        if rewards:
+            score = sum(rewards) / len(rewards)
 
-        print(f"[END] task={task} score={score:.3f} steps={step}", flush=True)
-        return score
+        score = min(max(score, 0.0), 1.0)
+        success = score >= SUCCESS_SCORE_THRESHOLD
 
-    except Exception as e:
-        print(f"[ERROR] Task {task} failed: {e}", flush=True)
-        return 0.0
-def main():
-    if not API_KEY:
-        print("[ERROR] API_KEY (HF_TOKEN) is not set.")
+    except Exception as exc:
+        print(
+            f"[ERROR] Task {task} failed: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    finally:
+        log_end(
+            success=success,
+            steps=steps_taken,
+            score=score,
+            rewards=rewards,
+        )
+
+    return score
+
+# ==========================================================
+# MAIN
+# ==========================================================
+def main() -> None:
+    if not HF_TOKEN:
+        print(
+            "[ERROR] HF_TOKEN is not set.",
+            file=sys.stderr,
+            flush=True,
+        )
         return
 
-    scores = {}
     for task in TASKS:
-        scores[task] = run_task(task)
+        run_task(task)
 
-    avg = sum(scores.values()) / len(scores)
-    summary = f"[SUMMARY] easy={scores['easy']:.2f} medium={scores['medium']:.2f} hard={scores['hard']:.2f} avg={avg:.2f}"
-    print("\n" + "="*len(summary))
-    print(summary)
-    print("="*len(summary) + "\n")
 
 if __name__ == "__main__":
     main()
