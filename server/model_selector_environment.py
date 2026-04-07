@@ -413,11 +413,19 @@ class ModelSelectorEnvironment(Environment):
         return float(np.clip(reward, -1, 1))
 
     def _build_obs(self, done: bool, reward: float) -> ModelSelectorObservation:
-        stage_name = self.stages[self.current_stage_idx] if not done else "completed"
+        idx = self.current_stage_idx
+        stages_count = len(self.stages)
+        
+        stage_name = self.stages[idx] if idx < stages_count else "completed"
+        
+        next_idx = idx + 1
+        next_stage_name = self.stages[next_idx] if next_idx < stages_count else None
+        
         profile = {"n_samples": self.X.shape[0], "n_features": self.X.shape[1]}
         
         return ModelSelectorObservation(
             stage=stage_name,
+            next_stage=next_stage_name,
             task_type=self.task_type or "unknown",
             dataset_profile=profile,
             partial_pipeline=self.pipeline_decisions,

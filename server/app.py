@@ -399,20 +399,15 @@ def custom_playground():
                     outputEl.textContent = JSON.stringify(data, null, 2);
                     updateDashboard(data);
                     
-                    // Update step body with the current stage
-                    const observation = data.observation || data;
-                    if (observation.current_stage) {
-                        const stepBody = {
-                            action: {
-                                stage: observation.current_stage
-                            }
-                        };
+                    // AUTO-UPDATE NEXT ACTION
+                    const obs = data.observation || data;
+                    if (obs.stage) {
+                        const stepBody = { action: { stage: obs.stage } };
                         document.getElementById("stepBody").value = JSON.stringify(stepBody, null, 2);
                     }
                     
                 } catch (e) {
                     outputEl.textContent = `❌ Error: ${e.message}`;
-                    console.error('Reset error:', e);
                 }
             }
             
@@ -436,25 +431,15 @@ def custom_playground():
                     outputEl.textContent = JSON.stringify(data, null, 2);
                     updateDashboard(data);
                     
-                    // Update step body with next stage if available
-                    const observation = data.observation || data;
-                    if (observation.next_stage && observation.next_stage !== 'complete') {
-                        const stepBody = {
-                            action: {
-                                stage: observation.next_stage
-                            }
-                        };
+                    // AUTO-UPDATE NEXT ACTION
+                    const obs = data.observation || data;
+                    if (obs.next_stage && obs.next_stage !== 'completed') {
+                        const stepBody = { action: { stage: obs.next_stage } };
                         document.getElementById("stepBody").value = JSON.stringify(stepBody, null, 2);
-                    }
-                    
-                    // Check if episode is done
-                    if (observation.done || data.done) {
-                        outputEl.textContent += "\\n\\n✅ Pipeline complete! Run reset to start over.";
                     }
                     
                 } catch (e) {
                     outputEl.textContent = `❌ Error: ${e.message}`;
-                    console.error('Step error:', e);
                 }
             }
             

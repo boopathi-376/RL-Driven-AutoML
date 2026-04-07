@@ -30,6 +30,7 @@ class ModelSelectorAction(BaseModel):
 
 class ModelSelectorObservation(Observation):
     stage: str
+    next_stage: Optional[str] = None
     task_type: str
     dataset_profile: Dict[str, Any]
     partial_pipeline: Dict[str, Any]
