@@ -19,10 +19,10 @@ Endpoints:
 
 Usage:
     # Development (with auto-reload):
-    uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
+    uvicorn server.app:app --reload --host 0.0.0.0 --port 7860
 
     # Production:
-    uvicorn server.app:app --host 0.0.0.0 --port 8000 --workers 4
+    uvicorn server.app:app --host 0.0.0.0 --port 7860 --workers 4
 
     # Or run directly:
     python -m server.app
@@ -40,32 +40,51 @@ try:
     from models import ModelSelectorAction, ModelSelectorObservation
     from server.model_selector_environment import ModelSelectorEnvironment
 except (ImportError, ValueError):
+    import sys
+    from pathlib import Path
+    # Ensure root is on path for relative structures
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     try:
-        # Fallback to local import structure
+        from models import ModelSelectorAction, ModelSelectorObservation
+        from server.model_selector_environment import ModelSelectorEnvironment
+    except (ImportError, ValueError):
+        # Local flat fallback
         from .model_selector_environment import ModelSelectorEnvironment
         from ..models import ModelSelectorAction, ModelSelectorObservation
-    except (ImportError, ValueError):
-        # Final fallback for flat local run from within server/
-        from model_selector_environment import ModelSelectorEnvironment
-        from models import ModelSelectorAction, ModelSelectorObservation
 
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+# ==========================================================
+# SINGLETON ENVIRONMENT FACTORY
+# ==========================================================
+# Create a singleton wrapper factory so HTTP REST calls (Swagger/Postman/Browser) 
+# maintain the same sequential state as the WebSocket sessions.
+_shared_env = ModelSelectorEnvironment()
+
+def get_shared_env():
+    return _shared_env
+
 # Create the app with web interface and README integration
 app = create_app(
-    ModelSelectorEnvironment,
+    get_shared_env,
     ModelSelectorAction,
     ModelSelectorObservation,
     env_name="model_selector",
     max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
 )
 
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return custom_playground()
+# ==========================================================
+# CUSTOM PLAYGROUND & HOME REDIRECT
+# ==========================================================
+
+@app.get("/")
+def home_redirect():
+    """Redirect home to playground for HF Space UI immersion."""
+    return RedirectResponse(url="/playground")
 
 @app.get("/playground", response_class=HTMLResponse)
 def custom_playground():
+    """Premium Dark-Themed AutoML Playground."""
     return """
     <!DOCTYPE html>
     <html lang="en">
@@ -276,17 +295,35 @@ def custom_playground():
     </html>
     """
 
+# ==========================================================
+# CLI ENTRY POINT
+# ==========================================================
 
 def main():
+    """
+    Entry point for `uv run server`.
+
+    Usage:
+        uv run server                   # default host=0.0.0.0, port=7860
+        uv run server --port 8001
+        uv run server --host 127.0.0.1 --port 8080 --reload
+    """
     import argparse
     import uvicorn
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--host", type=str, default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=7860)
+    parser = argparse.ArgumentParser(description="Model Selector Environment Server")
+    parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=7860, help="Bind port (default: 7860)")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev mode)")
     args = parser.parse_args()
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    # If reloading, use the import string; otherwise use the app instance
+    uvicorn.run(
+        "server.app:app" if args.reload else app,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+    )
 
 
 if __name__ == "__main__":
