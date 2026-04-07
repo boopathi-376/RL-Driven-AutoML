@@ -1,6 +1,13 @@
 import asyncio
 import os
+import sys
 from typing import List, Optional, Dict, Any
+
+# ==========================================================
+# WINDOWS ASYNCIO FIX (Prevents SSL / Loop closed errors)
+# ==========================================================
+if sys.platform == 'win32' and sys.version_info < (3, 11):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from openai import OpenAI
 
@@ -194,8 +201,34 @@ async def main() -> None:
             rewards=rewards,
         )
 
-        print_step_summary(step_outputs)
+        # Print ONLY the model_select result as requested
+        model_result = next((s for s in step_outputs if s["stage"] == "model_select"), None)
+        
+        # Robustly find the report data
+        final_report = None
+        if model_result:
+            final_report = model_result.get("report") or model_result.get("partial_pipeline", {}).get("model_select")
+            
+        if final_report:
+            print("\n" + "=" * 45, flush=True)
+            print("🚀 MODEL SELECTION FINAL RESULT", flush=True)
+            print("=" * 45, flush=True)
+            print(f"Selected Model : {final_report.get('selected_model', 'N/A')}", flush=True)
+            
+            # Extract score (it might be in 'score' or 'best_score')
+            score_val = final_report.get('score') or final_report.get('best_score', 0.0)
+            print(f"Base Score     : {float(score_val):.4f}", flush=True)
+            
+            print(f"Pipeline Stage : {model_result['stage']}", flush=True)
+            print("=" * 45 + "\n", flush=True)
+            
+            # Wait a split second to ensure print buffer is drained on Windows
+            sys.stdout.flush()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, RuntimeError):
+        # Suppress noise during Windows event loop cleanup
+        pass
