@@ -37,17 +37,17 @@ except Exception as e:  # pragma: no cover
 
 try:
     # Try absolute import (best for Docker/Production with PYTHONPATH=/app)
-    from models import ModelSelectorAction, ModelSelectorObservation
+    from models import ModelSelectorAction, ModelSelectorObservation, EnvInput
     from server.model_selector_environment import ModelSelectorEnvironment
 except (ImportError, ValueError):
     try:
         # Fallback to local import structure
         from .model_selector_environment import ModelSelectorEnvironment
-        from ..models import ModelSelectorAction, ModelSelectorObservation
+        from ..models import ModelSelectorAction, ModelSelectorObservation, EnvInput
     except (ImportError, ValueError):
         # Final fallback for flat local run from within server/
         from model_selector_environment import ModelSelectorEnvironment
-        from models import ModelSelectorAction, ModelSelectorObservation
+        from models import ModelSelectorAction, ModelSelectorObservation, EnvInput
 
 
 # Create a singleton environment so state persists across requests
@@ -63,6 +63,7 @@ app = create_app(
     ModelSelectorAction,
     ModelSelectorObservation,
     env_name="model_selector",
+    reset_input_model=EnvInput,
     max_concurrent_envs=1,
 )
 
