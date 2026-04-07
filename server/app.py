@@ -81,6 +81,11 @@ app = create_app(
 # CUSTOM UI ENDPOINTS
 # ==========================================================
 
+@app.get("/", include_in_schema=False)
+def root_redirect():
+    """Redirects the root URL to the interactive playground."""
+    return RedirectResponse(url="/playground")
+
 @app.get("/playground", response_class=HTMLResponse)
 def custom_playground():
     """Returns a premium, dark-themed interactive AutoML playground."""
