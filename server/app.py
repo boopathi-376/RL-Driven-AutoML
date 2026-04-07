@@ -1,98 +1,253 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
+"""
+FastAPI application for the Model Selector Environment.
+
+This module creates an HTTP server that exposes the ModelSelectorEnvironment
+over HTTP and WebSocket endpoints, compatible with EnvClient.
+
+Endpoints:
+    - POST /reset: Reset the environment
+    - POST /step: Execute an action
+    - GET /state: Get current environment state
+    - GET /schema: Get action/observation schemas
+    - WS /ws: WebSocket endpoint for persistent sessions
+    - GET /playground: Interactive AutoML dashboard
+
+Usage:
+    # Development (with auto-reload):
+    uvrun server --reload
+
+    # Or run directly:
+    python -m server.app
+"""
 
 import sys
-import time
 from pathlib import Path
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 try:
     from openenv.core.env_server.http_server import create_app
 except ImportError as e:
-    raise ImportError("openenv is required. Install with 'uv sync'") from e
+    raise ImportError(
+        "openenv is required for the web interface. Install dependencies with '\n    uv sync\n'"
+    ) from e
 
-# Import logic
+# Robust import handling for models and environment
 try:
-    from models import ModelSelectorAction, ModelSelectorObservation
-    from model_selector_environment import ModelSelectorEnvironment
-except ImportError:
+    # Try direct package-relative imports first
+    from ..models import ModelSelectorAction, ModelSelectorObservation
+    from .model_selector_environment import ModelSelectorEnvironment
+except (ModuleNotFoundError, ImportError, ValueError):
+    # Fallback: Insert project root into sys.path
     project_root = str(Path(__file__).resolve().parent.parent)
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
+    
     from models import ModelSelectorAction, ModelSelectorObservation
-    from server.model_selector_environment import ModelSelectorEnvironment
+    try:
+        from server.model_selector_environment import ModelSelectorEnvironment
+    except ImportError:
+        from model_selector_environment import ModelSelectorEnvironment
+
 
 # ==========================================================
-# SHARED ENVIRONMENT (Singleton)
+# SHARED ENVIRONMENT (Stateful REST)
 # ==========================================================
+# Create a singleton wrapper so HTTP REST calls (Swagger/Playground) 
+# maintain state sequentially in memory.
 _shared_env = ModelSelectorEnvironment()
 
 def get_shared_env():
     return _shared_env
 
-# Initialize the base app
 app = create_app(
     get_shared_env,
     ModelSelectorAction,
     ModelSelectorObservation,
     env_name="model_selector",
-    max_concurrent_envs=1
+    max_concurrent_envs=1,
+    
 )
 
 # ==========================================================
-# FIX: Explicit State Endpoint 
-# ==========================================================
-@app.get("/state")
-async def get_current_state():
-    """Explicitly returns the current environment state to avoid stale data."""
-    env = get_shared_env()
-    # Ensure we return a dictionary compatible with your JS
-    return {
-        "observation": env.get_observation(),
-        "step_count": getattr(env, "steps_taken", 0),
-        "reward": getattr(env, "last_reward", 0.0),
-        "timestamp": time.time() # Force unique response
-    }
-
-# ==========================================================
-# UPDATED UI WITH CACHE-BUSTING JS
+# CUSTOM UI ENDPOINTS
 # ==========================================================
 
 @app.get("/playground", response_class=HTMLResponse)
 def custom_playground():
+    """Returns a premium, dark-themed interactive AutoML playground."""
     return """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>AutoML Pipeline Playground</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
         <style>
-            :root { --primary: #8b5cf6; --secondary: #3b82f6; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #10b981; }
-            body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 40px; display: flex; flex-direction: column; align-items: center; }
-            .container { width: 100%; max-width: 1000px; background: var(--card); padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-            .section { background: rgba(15, 23, 42, 0.5); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
-            textarea { width: 100%; background: #0f172a; color: #38bdf8; border: 1px solid #334155; border-radius: 12px; padding: 16px; font-family: 'JetBrains Mono'; font-size: 13px; box-sizing: border-box; }
-            button { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; margin-top: 10px; }
+            :root {
+                --primary: #8b5cf6;
+                --secondary: #3b82f6;
+                --bg: #0f172a;
+                --card: #1e293b;
+                --text: #f8fafc;
+                --accent: #10b981;
+            }
+            body {
+                font-family: 'Outfit', sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                margin: 0;
+                padding: 40px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                min-height: 100vh;
+            }
+            .container {
+                width: 100%;
+                max-width: 1000px;
+                background: var(--card);
+                padding: 40px;
+                border-radius: 24px;
+                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+                border: 1px solid rgba(255,255,255,0.1);
+            }
+            h1 {
+                font-weight: 600;
+                background: linear-gradient(to right, #a78bfa, #60a5fa);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin-bottom: 8px;
+            }
+            p.desc { color: #94a3b8; margin-bottom: 32px; }
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 24px;
+                margin-bottom: 32px;
+            }
+            .section {
+                background: rgba(15, 23, 42, 0.5);
+                padding: 20px;
+                border-radius: 16px;
+                border: 1px solid rgba(255,255,255,0.05);
+            }
+            label {
+                display: block;
+                font-weight: 600;
+                margin-bottom: 12px;
+                color: #cbd5e1;
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            textarea {
+                width: 100%;
+                background: #0f172a;
+                color: #38bdf8;
+                border: 1px solid #334155;
+                border-radius: 12px;
+                padding: 16px;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 13px;
+                resize: vertical;
+                box-sizing: border-box;
+                transition: border-color 0.2s;
+            }
+            textarea:focus {
+                outline: none;
+                border-color: var(--primary);
+            }
+            .controls {
+                display: flex;
+                gap: 12px;
+                margin-top: 16px;
+            }
+            button {
+                flex: 1;
+                padding: 12px;
+                border-radius: 12px;
+                border: none;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-family: 'Outfit', sans-serif;
+            }
             .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; }
+            .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.3); }
             .btn-secondary { background: #334155; color: #f1f5f9; }
-            #output { background: #020617; padding: 24px; border-radius: 16px; font-family: 'JetBrains Mono'; color: #10b981; overflow-x: auto; border: 1px solid #1e293b; }
-            .state-dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-            .stat-card { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2); padding: 16px; border-radius: 16px; text-align: center; }
-            .stat-value { font-size: 1.2rem; font-weight: 600; color: var(--primary); display: block; }
-            .stat-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+            .btn-secondary:hover { background: #475569; }
+            
+            #output {
+                width: 100%;
+                background: #020617;
+                padding: 24px;
+                border-radius: 16px;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 13px;
+                color: #10b981;
+                overflow-x: auto;
+                border: 1px solid #1e293b;
+            }
+            .state-dashboard {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+            .stat-card {
+                background: rgba(139, 92, 246, 0.1);
+                border: 1px solid rgba(139, 92, 246, 0.2);
+                padding: 16px;
+                border-radius: 16px;
+                text-align: center;
+            }
+            .stat-value {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: var(--primary);
+                display: block;
+            }
+            .stat-label {
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                color: #94a3b8;
+                letter-spacing: 0.1em;
+            }
+            .guide {
+                margin-top: 32px;
+                padding-top: 32px;
+                border-top: 1px solid #1e293b;
+            }
+            .guide h3 { font-size: 1rem; color: #cbd5e1; margin-bottom: 16px; }
+            .guide ul { padding-left: 20px; color: #94a3b8; font-size: 0.9rem; line-height: 1.6; }
+            .badge {
+                display: inline-block;
+                padding: 4px 12px;
+                background: rgba(16, 185, 129, 0.1);
+                color: var(--accent);
+                border-radius: 99px;
+                font-size: 0.8rem;
+                margin-bottom: 20px;
+            }
         </style>
     </head>
     <body>
         <div class="container">
+            <div class="badge">OpenEnv v0.2.2</div>
             <h1>AutoML Pipeline Playground</h1>
+            
+            <!-- State Dashboard -->
             <div class="state-dashboard">
                 <div class="stat-card">
                     <span class="stat-label">Current Stage</span>
-                    <span id="stat-stage" class="stat-value">---</span>
+                    <span id="stat-stage" class="stat-value">Not Initialized</span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Steps Taken</span>
@@ -107,64 +262,139 @@ def custom_playground():
             <div class="grid">
                 <div class="section">
                     <label>1. Reset Environment</label>
-                    <textarea id="resetBody" rows="5">{"params": {"data_path": "data/Salary_dataset.csv", "target_column": "Salary"}}</textarea>
-                    <button class="btn-primary" onclick="executeAction('/reset', 'resetBody')">Reset</button>
+                    <textarea id="resetBody" rows="7">{
+  "params": {
+    "data_path": "data/Salary_dataset.csv",
+    "target_column": "Salary",
+    "latency_budget": 120.0
+  }
+}</textarea>
+                    <div class="controls">
+                        <button class="btn-primary" onclick="resetEnv()">Execute Reset</button>
+                    </div>
                 </div>
+
                 <div class="section">
                     <label>2. Execute Step</label>
-                    <textarea id="stepBody" rows="5">{"action": {"stage": "cleaning"}}</textarea>
-                    <button class="btn-primary" onclick="executeAction('/step', 'stepBody')">Step</button>
-                    <button class="btn-secondary" onclick="updateState()">Refresh State</button>
+                    <textarea id="stepBody" rows="7">{
+  "action": {
+    "stage": "cleaning"
+  }
+}</textarea>
+                    <div class="controls">
+                        <button class="btn-primary" onclick="stepEnv()">Send Action</button>
+                        <button class="btn-secondary" onclick="getState()">Refresh State</button>
+                    </div>
                 </div>
             </div>
 
-            <label>API Response</label>
-            <pre id="output">// Ready...</pre>
+            <label>Live API Response</label>
+            <pre id="output">// Responses will appear here...</pre>
+
+            <!-- Operation Guide -->
+            <div class="guide">
+                <h3>[Documentation] How to use the Pipeline</h3>
+                <ul>
+                    <li><strong>Reset:</strong> Start here. Provide a CSV/TXT path. The environment will profile the data and set the stage to <code>cleaning</code>.</li>
+                    <li><strong>Step:</strong> Update the "stage" in the Step box to match the environment's current stage. </li>
+                    <li><strong>Sequence:</strong> Follow the order returned in the <code>next_stage</code> field of the response.</li>
+                    <li><strong>Structure Data (8 Steps):</strong> Cleaning → Encoding → Engineering → Scaling → Selection → Modeling → Tuning → Ensemble.</li>
+                    <li><strong>Text Data (4 Steps):</strong> Cleaning → Model Select → Tuning → Ensemble.</li>
+                </ul>
+            </div>
         </div>
 
         <script>
-            async function executeAction(endpoint, bodyId) {
-                const out = document.getElementById("output");
-                out.textContent = "// Processing...";
+            async function resetEnv() {
+                updateOutput("// Resetting...");
                 try {
-                    const res = await fetch(endpoint, {
+                    const response = await fetch("/reset", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: document.getElementById(bodyId).value
+                        body: document.getElementById("resetBody").value
                     });
-                    const data = await res.json();
-                    renderResponse(data);
-                } catch (e) { out.textContent = "Error: " + e.message; }
+                    const data = await response.json();
+                    updateOutput(data);
+                } catch (e) { updateOutput({error: e.message}); }
             }
 
-            async function updateState() {
+            async function stepEnv() {
+                updateOutput("// Stepping...");
                 try {
-                    // Use timestamp to bypass browser cache
-                    const res = await fetch("/state?t=" + Date.now());
-                    const data = await res.json();
-                    renderResponse(data);
-                } catch (e) { console.error(e); }
+                    const response = await fetch("/step", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: document.getElementById("stepBody").value
+                    });
+                    const data = await response.json();
+                    updateOutput(data);
+                } catch (e) { updateOutput({error: e.message}); }
             }
 
-            function renderResponse(data) {
-                document.getElementById("output").textContent = JSON.stringify(data, null, 2);
-                
-                // Extract observation
-                const obs = data.observation || data;
-                
-                // Map the keys precisely to your Environment's attribute names
-                document.getElementById("stat-stage").textContent = obs.stage || obs.current_stage || "---";
-                document.getElementById("stat-steps").textContent = data.step_count ?? obs.steps_taken ?? "0";
-                document.getElementById("stat-reward").textContent = (data.reward ?? 0).toFixed(4);
+            async function getState() {
+                updateOutput("// Fetching state...");
+                try {
+                    const response = await fetch("/state");
+                    const data = await response.json();
+                    updateOutput(data);
+                } catch (e) { updateOutput({error: e.message}); }
             }
-            
-            // Auto-refresh on load
-            window.onload = updateState;
+
+            function updateOutput(data) {
+                const el = document.getElementById("output");
+                if (typeof data === 'string') {
+                    el.textContent = data;
+                } else {
+                    el.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Update Dashboard Metrics
+                    const obs = data.observation || data;
+                    if (obs.current_stage || obs.stage) {
+                        document.getElementById("stat-stage").textContent = obs.current_stage || obs.stage;
+                    }
+                    if (data.step_count !== undefined) {
+                        document.getElementById("stat-steps").textContent = data.step_count;
+                    }
+                    if (data.reward !== undefined) {
+                        document.getElementById("stat-reward").textContent = data.reward.toFixed(4);
+                    }
+                }
+            }
         </script>
     </body>
     </html>
     """
 
-if __name__ == "__main__":
+
+# ==========================================================
+# CLI ENTRYPOINT
+# ==========================================================
+
+def main():
+    """
+    Entry point for server execution.
+    
+    Usage:
+        uvrun server                   # default host=0.0.0.0, port=7860
+        uvrun server --port 8001
+        uvrun server --host 127.0.0.1 --port 8080 --reload
+    """
+    import argparse
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+    parser = argparse.ArgumentParser(description="Model Selector Environment Server")
+    parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=7860, help="Bind port (default: 7860)")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev mode)")
+    args = parser.parse_args()
+
+    uvicorn.run(
+        "server.app:app" if args.reload else app,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+    )
+
+
+if __name__ == "__main__":
+    main()
