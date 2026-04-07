@@ -195,6 +195,38 @@ def custom_playground():
                 overflow-x: auto;
                 border: 1px solid #1e293b;
             }
+            .state-dashboard {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+            .stat-card {
+                background: rgba(139, 92, 246, 0.1);
+                border: 1px solid rgba(139, 92, 246, 0.2);
+                padding: 16px;
+                border-radius: 16px;
+                text-align: center;
+            }
+            .stat-value {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: var(--primary);
+                display: block;
+            }
+            .stat-label {
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                color: #94a3b8;
+                letter-spacing: 0.1em;
+            }
+            .guide {
+                margin-top: 32px;
+                padding-top: 32px;
+                border-top: 1px solid #1e293b;
+            }
+            .guide h3 { font-size: 1rem; color: #cbd5e1; margin-bottom: 16px; }
+            .guide ul { padding-left: 20px; color: #94a3b8; font-size: 0.9rem; line-height: 1.6; }
             .badge {
                 display: inline-block;
                 padding: 4px 12px;
@@ -210,12 +242,27 @@ def custom_playground():
         <div class="container">
             <div class="badge">OpenEnv v0.2.2</div>
             <h1>AutoML Pipeline Playground</h1>
-            <p class="desc">Interactive interface for manual pipeline orchestration.</p>
+            
+            <!-- State Dashboard -->
+            <div class="state-dashboard">
+                <div class="stat-card">
+                    <span class="stat-label">Current Stage</span>
+                    <span id="stat-stage" class="stat-value">Not Initialized</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Steps Taken</span>
+                    <span id="stat-steps" class="stat-value">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Latest Reward</span>
+                    <span id="stat-reward" class="stat-value">0.00</span>
+                </div>
+            </div>
 
             <div class="grid">
                 <div class="section">
                     <label>1. Reset Environment</label>
-                    <textarea id="resetBody" rows="8">{
+                    <textarea id="resetBody" rows="7">{
   "params": {
     "data_path": "data/Salary_dataset.csv",
     "target_column": "Salary",
@@ -229,7 +276,7 @@ def custom_playground():
 
                 <div class="section">
                     <label>2. Execute Step</label>
-                    <textarea id="stepBody" rows="8">{
+                    <textarea id="stepBody" rows="7">{
   "action": {
     "stage": "cleaning"
   }
@@ -243,6 +290,18 @@ def custom_playground():
 
             <label>Live API Response</label>
             <pre id="output">// Responses will appear here...</pre>
+
+            <!-- Operation Guide -->
+            <div class="guide">
+                <h3>[Documentation] How to use the Pipeline</h3>
+                <ul>
+                    <li><strong>Reset:</strong> Start here. Provide a CSV/TXT path. The environment will profile the data and set the stage to <code>cleaning</code>.</li>
+                    <li><strong>Step:</strong> Update the "stage" in the Step box to match the environment's current stage. </li>
+                    <li><strong>Sequence:</strong> Follow the order returned in the <code>next_stage</code> field of the response.</li>
+                    <li><strong>Structure Data (8 Steps):</strong> Cleaning → Encoding → Engineering → Scaling → Selection → Modeling → Tuning → Ensemble.</li>
+                    <li><strong>Text Data (4 Steps):</strong> Cleaning → Model Select → Tuning → Ensemble.</li>
+                </ul>
+            </div>
         </div>
 
         <script>
@@ -283,8 +342,23 @@ def custom_playground():
 
             function updateOutput(data) {
                 const el = document.getElementById("output");
-                if (typeof data === 'string') el.textContent = data;
-                else el.textContent = JSON.stringify(data, null, 2);
+                if (typeof data === 'string') {
+                    el.textContent = data;
+                } else {
+                    el.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Update Dashboard Metrics
+                    const obs = data.observation || data;
+                    if (obs.current_stage || obs.stage) {
+                        document.getElementById("stat-stage").textContent = obs.current_stage || obs.stage;
+                    }
+                    if (data.step_count !== undefined) {
+                        document.getElementById("stat-steps").textContent = data.step_count;
+                    }
+                    if (data.reward !== undefined) {
+                        document.getElementById("stat-reward").textContent = data.reward.toFixed(4);
+                    }
+                }
             }
         </script>
     </body>
