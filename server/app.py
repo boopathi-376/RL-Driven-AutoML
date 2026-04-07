@@ -49,7 +49,7 @@ except (ImportError, ValueError):
         from model_selector_environment import ModelSelectorEnvironment
         from models import ModelSelectorAction, ModelSelectorObservation
 
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 # Create the app with web interface and README integration
 app = create_app(
@@ -59,6 +59,10 @@ app = create_app(
     env_name="model_selector",
     max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
 )
+
+@app.get("/")
+def home_redirect():
+    return RedirectResponse(url="/playground")
 
 @app.get("/playground", response_class=HTMLResponse)
 def custom_playground():
