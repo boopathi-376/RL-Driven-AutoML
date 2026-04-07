@@ -434,6 +434,7 @@ class ModelSelectorEnvironment(Environment):
             reward=reward,
             done=done,
             progress=float(self.current_stage_idx / len(self.stages)),
+            step_count=int(self._state.step_count),
             metadata={"reports": self.components_reports}
         )
 

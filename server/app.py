@@ -316,6 +316,16 @@ def custom_playground():
             <label>📝 Live API Response</label>
             <pre id="output">// Click "Execute Reset" to start the AutoML pipeline...</pre>
 
+            <!-- Final Report (Hidden until Done) -->
+            <div id="final-report" style="display: none; margin-top: 24px; padding: 24px; background: rgba(16, 185, 129, 0.1); border: 2px solid var(--accent); border-radius: 16px;">
+                <h2 style="margin-top: 0; color: var(--accent); font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                    🏆 Pipeline Success: Final Report
+                </h2>
+                <div id="final-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
             <!-- Operation Guide -->
             <div class="guide">
                 <h3>📖 Pipeline Documentation</h3>
@@ -376,11 +386,36 @@ def custom_playground():
                         rewardElement.style.color = '#8b5cf6';
                     }
                 }
+
+                // 5. Final Report Logic
+                const reportEl = document.getElementById('final-report');
+                if (observation.done || data.done) {
+                    reportEl.style.display = 'block';
+                    const statsEl = document.getElementById('final-stats');
+                    
+                    const pipeline = observation.partial_pipeline || {};
+                    const modelData = pipeline.model_select || {};
+                    const tuningData = pipeline.tuning || {};
+                    
+                    statsEl.innerHTML = `
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px;">
+                            <span style="color: #94a3b8; font-size: 0.7rem; text-transform: uppercase;">Selected Model</span>
+                            <div style="font-weight: 600; font-size: 1.1rem; color: #fff;">${modelData.selected_model || 'N/A'}</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px;">
+                            <span style="color: #94a3b8; font-size: 0.7rem; text-transform: uppercase;">Final Score</span>
+                            <div style="font-weight: 600; font-size: 1.1rem; color: #10b981;">${(modelData.score || tuningData.best_score || 0.0).toFixed(4)}</div>
+                        </div>
+                    `;
+                } else {
+                    reportEl.style.display = 'none';
+                }
             }
 
             async function resetEnv() {
                 const outputEl = document.getElementById('output');
                 outputEl.textContent = "🔄 Resetting environment...";
+                document.getElementById('final-report').style.display = 'none';
                 
                 try {
                     const resetData = JSON.parse(document.getElementById("resetBody").value);

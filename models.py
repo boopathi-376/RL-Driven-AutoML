@@ -38,6 +38,7 @@ class ModelSelectorObservation(Observation):
     latency_budget: float
     memory_limit_mb: float
     progress: float
+    step_count: int = 0
 
     available_choices: List[str] = Field(default_factory=list)
 
