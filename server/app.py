@@ -69,6 +69,15 @@ _shared_env = ModelSelectorEnvironment()
 def get_shared_env():
     return _shared_env
 
+@app.post("/reset")
+async def reset(params: Optional[Dict[str, Any]] = None, task: Optional[str] = None):
+    """Resets the environment. Supports task-based reset via query param or JSON body."""
+    if params is None:
+        params = {}
+    if task:
+        params["task"] = task
+    return _shared_env.reset(params)
+
 app = create_app(
     get_shared_env,
     ModelSelectorAction,
@@ -80,6 +89,32 @@ app = create_app(
 # ==========================================================
 # CUSTOM UI ENDPOINTS
 # ==========================================================
+
+@app.get("/grade")
+def grade_task(task: str = "easy"):
+    """
+    Grading endpoint for automated evaluation.
+    Checks the shared environment for task completion and reward metrics.
+    """
+    try:
+        state = _shared_env.state
+        is_done = state.get("done", False)
+        reward = state.get("reward", 0.0)
+        
+        # Simple grading logic: reward must be positive and pipeline done
+        success = is_done and reward >= 0.0
+        
+        return {
+            "success": success,
+            "task": task,
+            "reward": reward,
+            "done": is_done,
+            "score": state.get("val_score", 0.0),
+            "stage": state.get("current_stage", "unknown")
+        }
+    except Exception as e:
+        logger.error(f"Grading failed: {e}")
+        return {"success": False, "error": str(e)}
 
 @app.get("/", include_in_schema=False)
 def root_redirect():

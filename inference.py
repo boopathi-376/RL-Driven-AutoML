@@ -1,234 +1,125 @@
 import asyncio
 import os
 import sys
+import requests
 from typing import List, Optional, Dict, Any
+from openai import OpenAI
 
 # ==========================================================
 # WINDOWS ASYNCIO FIX (Prevents SSL / Loop closed errors)
 # ==========================================================
 if sys.platform == 'win32' and sys.version_info < (3, 11):
+    import asyncio
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-from openai import OpenAI
-
-from client import ModelSelectorEnv
-from models import ModelSelectorAction
-
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
-
-def check_keys():
-    if not API_KEY:
-        print("\n[ERROR] API key missing!")
-        print("Please set your Hugging Face Token (with 'inference' access) or OpenAI key:")
-        print("    $env:HF_TOKEN = \"your_token_here\"\n")
-        return False
-    return True
+# ── Config — uses hackathon injected environment variables ─────────────────────
+BASE_URL = os.getenv("ENV_BASE_URL") or os.getenv("ENV_URL") or "http://127.0.0.1:7860"
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 
-ENV_URL = os.getenv("ENV_URL") or "https://boopathi376-rl-driven-automl.hf.space"
+TASKS = ["easy", "medium", "hard"]
+STAGES = ["cleaning", "encoding", "engineering", "scaling", "selection", "model_select", "tuning", "ensemble"]
 
-TASK_NAME = "model_selector"
-BENCHMARK = "openenv"
-MAX_STEPS = 8
-SUCCESS_SCORE_THRESHOLD = 0.5
+# Initialize OpenAI client with hackathon LiteLLM proxy
+client = OpenAI(
+    api_key=API_KEY,
+    base_url=API_BASE_URL,
+)
 
+def call_llm(obs: dict) -> str:
+    """Ask LLM which action to take given current observation."""
+    current_stage = obs.get("stage")
+    next_stage_hint = obs.get("next_stage")
+    task_type = obs.get("task_type")
+    
+    prompt = f"""You are an AutoML RL agent. 
+Current Observation:
+- Stage to execute: {current_stage}
+- Task Type: {task_type}
+- Suggested Next: {next_stage_hint}
 
-def log_start(task: str, env: str, model: str) -> None:
-    print(f"[START] task={task} env={env} model={model}", flush=True)
+Available stages: {', '.join(STAGES)}
 
+Reply with ONLY the exact name of the current stage to execute ({current_stage}), nothing else."""
 
-def log_step(
-    step: int,
-    action: str,
-    reward: float,
-    done: bool,
-    error: Optional[str],
-) -> None:
-    error_text = error if error else "null"
-    done_text = str(done).lower()
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=20,
+            temperature=0.0,
+        )
+        action = response.choices[0].message.content.strip().lower()
+        if action in STAGES:
+            return action
+    except Exception as e:
+        print(f"LLM error: {e}", flush=True)
 
-    print(
-        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_text} error={error_text}",
-        flush=True,
-    )
+    return current_stage if current_stage in STAGES else STAGES[0]
 
+def run_task(task: str) -> float:
+    """Run one full episode for a given task and return grade score (reward)."""
+    try:
+        # Reset with task query param
+        r = requests.post(f"{BASE_URL}/reset", params={"task": task})
+        r.raise_for_status()
+        data = r.json()
+        obs = data.get("observation") or data
+        
+        done = False
+        step = 0
+        total_reward = 0.0
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    rewards_text = ",".join([f"{r:.2f}" for r in rewards])
+        print(f"[START] task={task}", flush=True)
 
-    print(
-        f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_text}",
-        flush=True,
-    )
+        while not done:
+            step += 1
+            if not obs or obs.get("stage") == "completed":
+                break
 
+            action = call_llm(obs)
 
-def print_step_summary(step_outputs: List[Dict[str, Any]]) -> None:
-    print("\n" + "=" * 80)
-    print("FINAL STEP OUTPUT SUMMARY")
-    print("=" * 80)
+            # Send action to step endpoint
+            # My server expects ModelSelectorAction which has a 'stage' field
+            r = requests.post(f"{BASE_URL}/step", json={"stage": action})
+            r.raise_for_status()
+            
+            result = r.json()
+            obs = result.get("observation") or result
+            reward = float(result.get("reward", 0.0))
+            done = bool(result.get("done", False))
+            total_reward += reward
 
-    for item in step_outputs:
-        print(f"\nStep {item['step']}")
-        print(f"Stage        : {item['stage']}")
-        print(f"Reward       : {item['reward']:.4f}")
-        print(f"Done         : {item['done']}")
-        print(f"Next Stage   : {item['next_stage']}")
-        print(f"Progress     : {item['progress']:.2f}")
+            print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()}", flush=True)
+            
+            if done or step >= 10:
+                break
 
-        if item["dataset_profile"]:
-            print("Dataset Profile:")
-            for key, value in item["dataset_profile"].items():
-                print(f"  - {key}: {value}")
+        # Get final score from grading endpoint
+        gr = requests.get(f"{BASE_URL}/grade", params={"task": task})
+        score = gr.json().get("reward", total_reward)
 
-        if item["report"]:
-            print("Returned Report:")
-            for key, value in item["report"].items():
-                print(f"  - {key}: {value}")
-        else:
-            print("Returned Report: None")
+        print(f"[END] task={task} score={score:.3f} steps={step}", flush=True)
+        return score
+    except Exception as e:
+        print(f"[ERROR] Task {task} failed: {e}", flush=True)
+        return 0.0
 
-        if item["partial_pipeline"]:
-            print("Pipeline Decisions:")
-            for key, value in item["partial_pipeline"].items():
-                print(f"  - {key}: {value}")
-
-
-async def main() -> None:
-    if not check_keys():
+def main():
+    if not API_KEY:
+        print("[ERROR] API_KEY (HF_TOKEN) is not set.")
         return
 
-    client = OpenAI(
-        base_url=API_BASE_URL,
-        api_key=API_KEY,
-    )
+    scores = {}
+    for task in TASKS:
+        scores[task] = run_task(task)
 
-    env = ModelSelectorEnv(base_url=ENV_URL)
-
-    rewards: List[float] = []
-    step_outputs: List[Dict[str, Any]] = []
-
-    steps_taken = 0
-    score = 0.0
-    success = False
-
-    log_start(
-        task=TASK_NAME,
-        env=BENCHMARK,
-        model=MODEL_NAME,
-    )
-
-    try:
-        result = await env.reset(
-            params={
-                "data_path": "data/Salary_dataset.csv",
-                "target_column": "Salary",
-                "latency_budget": 120.0,
-                "memory_limit_mb": 0.0,
-            }
-        )
-
-        for step in range(1, MAX_STEPS + 1):
-            if result.done:
-                break
-
-            current_stage = result.observation.stage
-
-            if current_stage is None:
-                break
-
-            action = ModelSelectorAction(stage=current_stage)
-
-            result = await env.step(action)
-
-            reward = float(result.reward or 0.0)
-            done = bool(result.done)
-
-            metadata = {}
-            if hasattr(result.observation, "metadata") and result.observation.metadata:
-                metadata = result.observation.metadata
-
-            error = metadata.get("error")
-
-            reports = metadata.get("reports", {})
-            current_report = reports.get(current_stage, {})
-
-            rewards.append(reward)
-            steps_taken = step
-
-            step_outputs.append(
-                {
-                    "step": step,
-                    "stage": current_stage,
-                    "reward": reward,
-                    "done": done,
-                    "next_stage": getattr(result.observation, "stage", None),
-                    "progress": getattr(result.observation, "progress", 0.0),
-                    "dataset_profile": getattr(result.observation, "dataset_profile", {}),
-                    "partial_pipeline": getattr(result.observation, "partial_pipeline", {}),
-                    "report": current_report,
-                }
-            )
-
-            log_step(
-                step=step,
-                action=current_stage,
-                reward=reward,
-                done=done,
-                error=error,
-            )
-
-            if done:
-                break
-
-        if rewards:
-            normalized_rewards = [max(0.0, min(1.0, r)) for r in rewards]
-            score = sum(normalized_rewards) / len(normalized_rewards)
-        else:
-            score = 0.0
-
-        score = max(0.0, min(1.0, score))
-        success = score >= SUCCESS_SCORE_THRESHOLD
-
-    except Exception as exc:
-        print(f"[DEBUG] inference failed: {exc}", flush=True)
-
-    finally:
-        log_end(
-            success=success,
-            steps=steps_taken,
-            score=score,
-            rewards=rewards,
-        )
-
-        # Print ONLY the model_select result as requested
-        model_result = next((s for s in step_outputs if s["stage"] == "model_select"), None)
-        
-        # Robustly find the report data
-        final_report = None
-        if model_result:
-            final_report = model_result.get("report") or model_result.get("partial_pipeline", {}).get("model_select")
-            
-        if final_report:
-            print("\n" + "=" * 45, flush=True)
-            print("🚀 MODEL SELECTION FINAL RESULT", flush=True)
-            print("=" * 45, flush=True)
-            print(f"Selected Model : {final_report.get('selected_model', 'N/A')}", flush=True)
-            
-            # Extract score (it might be in 'score' or 'best_score')
-            score_val = final_report.get('score') or final_report.get('best_score', 0.0)
-            print(f"Base Score     : {float(score_val):.4f}", flush=True)
-            
-            print(f"Pipeline Stage : {model_result['stage']}", flush=True)
-            print("=" * 45 + "\n", flush=True)
-            
-            # Wait a split second to ensure print buffer is drained on Windows
-            sys.stdout.flush()
-
+    avg = sum(scores.values()) / len(scores)
+    summary = f"[SUMMARY] easy={scores['easy']:.2f} medium={scores['medium']:.2f} hard={scores['hard']:.2f} avg={avg:.2f}"
+    print("\n" + "="*len(summary))
+    print(summary)
+    print("="*len(summary) + "\n")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, RuntimeError):
-        # Suppress noise during Windows event loop cleanup
-        pass
+    main()

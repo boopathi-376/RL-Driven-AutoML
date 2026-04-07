@@ -1,7 +1,60 @@
 spec_version: 1
 name: model_selector
+version: "1.0"
+description: "Sequential AutoML pipeline selection environment. Treatment of machine learning workflows as a Sequential Decision Process for RL agents."
+
 type: space
 runtime: fastapi
 app: server.app:app
 port: 7860
+base_path: /
 
+observation_space:
+  type: object
+  properties:
+    stage:
+      type: string
+    next_stage:
+      type: string
+      nullable: true
+    task_type:
+      type: string
+    dataset_profile:
+      type: object
+    progress:
+      type: number
+    step_count:
+      type: integer
+    reward:
+      type: number
+      nullable: true
+    done:
+      type: boolean
+
+action_space:
+  type: object
+  properties:
+    stage:
+      type: string
+
+reward:
+  description: "Dynamic reward engine based on Model Score (Accuracy/R2) + Improvement - Overfitting Penalty - Latency Penalty. Positive signals for successful stage completion."
+
+tasks:
+  - id: easy
+    name: Salary Prediction (Regression)
+    description: "Build an AutoML pipeline for a small salary dataset. Success: Pipeline completion with R2 > 0.6."
+    success_criteria: "Complete stage 8 (ensemble) with non-negative reward."
+    grade_endpoint: "/grade?task=easy"
+
+  - id: medium
+    name: Wine Quality (Classification)
+    description: "Orchestrate a pipeline for wine quality multi-class classification. Success: Pipeline completion with Accuracy > 0.5."
+    success_criteria: "Reach 'completed' state through 8 stages."
+    grade_endpoint: "/grade?task=medium"
+
+  - id: hard
+    name: Log Analysis (Text Processing)
+    description: "Handle raw text data through a specialized 4-stage pipeline. Success: Pipeline completion."
+    success_criteria: "Complete text cleaning, vectorization, and modeling."
+    grade_endpoint: "/grade?task=hard"

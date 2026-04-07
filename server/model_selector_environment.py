@@ -115,6 +115,23 @@ class ModelSelectorEnvironment(Environment):
         if params and "params" in params:
             params = params["params"]
 
+        # Handle task-based reset (for Hackathon compatibility)
+        task = params.get("task") if params else None
+        
+        # --------------------------------------------------
+        # Task Mapping (Easy/Medium/Hard)
+        # --------------------------------------------------
+        if task:
+            if task == "easy":
+                params["data_path"] = "data/Salary_dataset.csv"
+                params["target_column"] = "Salary"
+            elif task == "medium":
+                params["data_path"] = "data/winequality-red.csv"
+                params["target_column"] = "quality"
+            elif task == "hard":
+                params["data_path"] = "data/train.txt"
+                params["target_column"] = None
+
         try:
             # Reconstruct EnvInput from dict for attribute access
             self.config = EnvInput(**(params or {}))
