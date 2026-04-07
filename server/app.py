@@ -72,6 +72,12 @@ app = create_app(
     ModelSelectorObservation,
     env_name="model_selector",
     max_concurrent_envs=1,
+    display={
+        "title": "RL-Driven AutoML",
+        "description": "Interactive AutoML environment for testing dataset preprocessing, feature engineering, model selection, tuning, and ensemble workflows.",
+        "playground_url": "/playground",
+        "docs_url": "/docs"
+    }
 )
 
 # ==========================================================
