@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache
+.coverage
+htmlcov
+.mypy_cache
+.uv
+
+# Project specific
+data/new_file.csv
+data/*.xlsx
+data/*.xls
+*.egg-info
+build/
+dist/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# OpenEnv
+uv.lock
+pyproject.toml
+openenv.yaml
+README.md
+client.py
+inference.py
+.gemini/
