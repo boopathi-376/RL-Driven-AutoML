@@ -1,57 +1,44 @@
 ---
-title: Model Selector AutoML Pipeline
-emoji: 🤖
-colorFrom: blue
-colorTo: green
+title: RL-Driven AutoML Pipeline
+emoji: 🧠
+colorFrom: purple
+colorTo: blue
 sdk: docker
 pinned: false
 app_port: 8000
 base_path: /web
 tags:
   - openenv
+  - reinforcement-learning
   - automl
   - scikit-learn
 ---
 
-# 🤖 Model Selector: 8-Stage AutoML Environment
-
-A professional, production-ready AutoML pipeline environment built for **OpenEnv**. This environment orchestrates a sophisticated 8-stage machine learning workflow, transforming raw data into optimized ensemble models.
+# 🧠 RL-Driven AutoML: An Intelligent ML Model Selector
 
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-Compatible-brightgreen)](https://github.com/meta-pytorch/OpenEnv)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/boopathi-376/RL-Driven-AutoML)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: BSD](https://img.shields.io/badge/License-BSD-yellow.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Space-Live%20Demo-yellow)](https://huggingface.co/spaces/boopathi-376/RL-Driven-AutoML)
 
-## 📋 Table of Contents
-- [System Architecture](#-system-architecture)
-- [Pipeline Workflow](#-pipeline-workflow)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [Environment Specification](#-environment-specification)
-- [Deployment](#-deployment)
-- [Inference & Usage](#-inference--usage)
+**RL-Driven AutoML** is an interactive environment designed for the **OpenEnv** ecosystem. Unlike static AutoML tools that output a single recommendation, this project treats the machine learning workflow as a **Sequential Decision Process**. It enables Reinforcement Learning (RL) agents to interact with datasets, perform strategic actions (cleaning, encoding, selecting), and receive rewards based on their ability to build high-performing, efficient pipelines.
 
 ---
 
-## 🏗 System Architecture
+## 🌟 The Core Concept: "The Virtual ML Engineer"
 
-The Model Selector follows a stateful environment-agent architecture. The **Environment** (Server) maintains the dataset and pipeline state, while the **Agent** (Client) decides which action to take at each of the 8 sequential stages.
+Traditional AutoML takes an input and returns an output. **RL-Driven AutoML** simulates the human workflow through a structured pipeline. At each stage, the agent makes a strategic decision:
 
-```mermaid
-graph TD
-    A[Client/Agent] -- Action --> B[FastAPI /ws]
-    B -- Step --> C[ModelSelectorEnvironment]
-    C -- Stage N --> D{Result?}
-    D -- Success --> E[Next Stage + Reward]
-    D -- Error --> F[Terminal State -1.0]
-    E -- Observation --> A
-```
+1.  **Observe**: Dataset metadata, distributions, and statistics.
+2.  **Decide**: Select the next processing step (e.g., *"Should I use Polynomial Features?"*).
+3.  **Execute**: Apply the action and observe the transformation.
+4.  **Evaluate**: Measure final model performance vs. resource usage (latency/memory).
+5.  **Learn**: Optimize the strategy for future unseen datasets.
 
 ---
 
-## ⚙️ Pipeline Workflow
+## 🛤️ The Intelligent Pipeline Workflow
 
-The environment strictly enforces an 8-stage progression. Each stage must be successfully completed to earn a positive reward and move to the next.
+For structured data, the environment enforces an 8-stage "Sequential Decision Process". For raw text data, it automatically simplifies to a 4-stage specialized text pipeline.
 
 ```mermaid
 graph LR
@@ -59,149 +46,151 @@ graph LR
     S2 --> S3[3. Engineering]
     S3 --> S4[4. Scaling]
     S4 --> S5[5. Selection]
-    S5 --> S6[6. Model Selection]
+    S5 --> S6[6. Modeling]
     S6 --> S7[7. Tuning]
     S7 --> S8[8. Ensemble]
 ```
 
-### 1. 🧹 Data Cleaning (`DataCleaner`)
-- Handles missing values (median/mode/constant).
-- Detects and clips outliers using IQR.
-- Removes duplicates and standardizes column names.
-- Lowercases and cleans text features.
+---
 
-### 2. 🔤 Data Encoding (`DataEncoder`)
-- Automatic detection of categorical, numerical, and text columns.
-- One-Hot/Ordinal encoding for categories.
-- TF-IDF/Hashing vectorization for text data.
+## 🏗️ Environment Architecture
 
-### 3. ⚙️ Feature Engineering (`FeatureEngineer`)
-- Generates polynomial features.
-- Creates manual interaction terms (e.g., $X_1 \times X_2$).
-- Extracts datetime features (hour, day, month, etc.).
-
-### 4. 📏 Feature Scaling (`DataScaler`)
-- Standard, Min-Max, and Robust scaling options.
-- Intelligent handling of sparse matrices to preserve memory.
-
-### 5. 🎯 Feature Selection (`FeatureSelector`)
-- Variance-based filtering.
-- Univariate selection (SelectKBest).
-- Importance-based pruning using Random Forest.
-
-### 6. 🤖 Model Selection (`SmartModelSelector`)
-- Heuristic-driven model selection based on sample count and feature density.
-- Cross-validated performance baselines.
-- Supports Classification (Logistic, SGD, DT, RF, MNB) and Regression (Linear, SGD, RF).
-
-### 7. 🔧 Hyperparameter Tuning (`HyperparamTuner`)
-- Automated search across model-specific parameter grids.
-- Cross-validation integrated scoring.
-
-### 8. 🧩 Ensemble Building (`EnsembleBuilder`)
-- Voting and Stacking strategies.
-- Combines top-performing models for maximum stability.
+```text
+                ┌──────────────────────┐
+                │     RL Agent         │
+                │ (Decision Maker)     │
+                └──────────┬───────────┘
+                           │
+                      Action (JSON)
+                           │
+                           ▼
+    ┌──────────────────────────────────────────────────┐
+    │         OpenEnv Environment (FastAPI)            │
+    │  ────────────────────────────────────────────    │
+    │                                                  │
+    │  ┌──────────────────────────────────────────┐   │
+    │  │      FastAPI /step Endpoint              │   │
+    │  └──────────────────┬───────────────────────┘   │
+    │                     │                           │
+    │         ┌───────────▼──────────┐                │
+    │         │   State Manager      │                │
+    │         │  (Pipeline Tracker)  │                │
+    │         └───────┬──────────┬───┘                │
+    │                 │          │                    │
+    │         ┌───────▼────┐ ┌───▼──────┐             │
+    │         │Data Engine │ │Reward    │             │
+    │         │(Processing)│ │Engine    │             │
+    │         └───────┬────┘ │(Scoring) │             │
+    │                 │      └───┬──────┘             │
+    │         ┌───────▼────┐    │                     │
+    │         │Internal    │────┘                     │
+    │         │State       │                          │
+    │         └───────┬────┘                          │
+    │                 │                               │
+    │         ┌───────▼──────────┐                    │
+    │         │Observation       │                    │
+    │         │Generator         │                    │
+    │         └───────┬──────────┘                    │
+    └─────────────────┼──────────────────────────────┘
+                      │
+                Observation + Reward
+                      │
+                      ▼
+                ┌──────────────────┐
+                │    RL Agent      │
+                │  (Learns Policy) │
+                └──────────────────┘
+```
 
 ---
 
-## 📁 Project Structure
+## 🛰️ API Endpoints
 
-```text
-model_selector/
-├── server/
-│   ├── steps_8/                 # Stage-specific modules
-│   │   ├── data_cleaning.py
-│   │   ├── encoding.py
-│   │   ├── feature_engineering.py
-│   │   ├── scaling.py
-│   │   ├── feature_selection.py
-│   │   ├── model_selection.py
-│   │   ├── hyperparameter_tuning.py
-│   │   └── ensemble.py
-│   ├── app.py                   # FastAPI Server entry point
-│   └── model_selector_environment.py # Core Environment Logic
-├── data/                        # Sample datasets (SAR, Wine, etc.)
-├── models.py                    # Action & Observation Pydantic models
-├── client.py                    # OpenEnv WebSocket Client
-├── inference.py                 # Agent-driven pipeline execution script
-├── Dockerfile                   # OpenEnv compliant container build
-├── openenv.yaml                 # Environment manifest
-└── pyproject.toml               # Dependency specification
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/reset` | `POST` | Start a new episode with a fresh dataset |
+| `/step` | `POST` | Execute a pipeline action and get observation + reward |
+| `/state` | `GET` | Get detailed internal state (progress, stages, metadata) |
+| `/docs` | `GET` | Interactive Swagger/OpenAPI documentation |
+| `/ws` | `WSS` | Persistent WebSocket session for low-latency agent interaction |
+
+---
+
+## 🛠️ RL Environment Specifications
+
+### 📊 Observation Space
+```json
+{
+  "stage": "encoding",
+  "task_type": "classification",
+  "dataset_profile": {
+    "n_samples": 1000,
+    "n_features": 25,
+    "missing_values": 120
+  },
+  "progress": 0.25,
+  "reward": 0.74
+}
 ```
+
+### 🏆 Reward System
+Rewards are calculated dynamically based on:
+`Reward = Val_Score + (0.2 × Improvement) - (0.3 × Overfit_Gap) - Latency_Penalty`
+
+| Scenario | Reward Signal | Reason |
+|----------|---------------|--------|
+| **Optimal Selection** | +0.85 to +1.0 | High validation accuracy matching task type |
+| **Overfitting** | -0.40 | Large gap between Training and Validation scores |
+| **Heavy Model** | -0.15 | High computation time / latency penalty |
+| **Binary Skip** | +0.05 | Correctly skipping redundant steps (e.g. scaling for Trees) |
 
 ---
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- Python 3.10+
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
-
-### Installation
+### 1. Clone & Install
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/model_selector.git
-cd model_selector
-
-# Install dependencies
+git clone https://github.com/boopathi-376/RL-Driven-AutoML.git
+cd RL-Driven-AutoML
 uv sync
 ```
 
-### Running Locally
+### 2. Run the Server
 ```bash
-# Start the FastAPI server
 uv run server
+```
 
-# In a separate terminal, run the agent-driven inference
+### 3. Run the Agent (Inference)
+```bash
+# Requires HF_TOKEN or API_KEY env variable
 uv run python inference.py
 ```
 
 ---
 
-## 🧪 Deployment
+## 📂 Project Structure
 
-### Docker Build
-The environment is fully containerized and follows [OpenEnv criteria](https://github.com/meta-pytorch/OpenEnv).
-
-```bash
-docker build -t model_selector:latest .
-docker run -p 8000:8000 model_selector:latest
-```
-
-### Hugging Face Spaces
-Deploy instantly using the OpenEnv CLI:
-```bash
-openenv push --repo-id your-org/model-selector-space
+```text
+RL-Driven-AutoML/
+├── server/
+│   ├── steps_8/        # Core ML Processing Engine
+│   ├── app.py          # FastAPI Server Scaffolding
+│   └── model_selector_environment.py # Environment Logic
+├── data/               # Benchmark Datasets (CSV/TXT)
+├── models.py           # Pydantic Action/Observation schemas
+├── client.py           # OpenEnv WebSocket Client
+├── inference.py        # LLM-based Agent Reference Implementation
+├── openenv.yaml        # environment manifest
+└── Dockerfile          # Container configuration
 ```
 
 ---
 
-## 📡 Inference & Usage
+## 🤝 Contributing
+We welcome contributions! Please fork the repository and open a Pull Request for any feature additions or optimizations.
 
-### Direct Environment Access
-You can interact with the environment via the `ModelSelectorEnv` client:
-
-```python
-from client import ModelSelectorEnv
-from models import ModelSelectorAction
-
-with ModelSelectorEnv(base_url="http://localhost:8000") as env:
-    # 1. Reset with dataset config
-    obs = env.reset(params={
-        "data_path": "./data/winequality-red.csv",
-        "target_column": "quality"
-    })
-    
-    # 2. Step through stages
-    action = ModelSelectorAction(stage_config={"strategy": "median"})
-    obs = env.step(action)
-    print(f"Current State Reward: {obs.reward}")
-```
-
-### Automatic Agent Inference
-The `inference.py` script demonstrates how to drive the pipeline using an LLM (like Qwen-72B) to make strategic configuration decisions at each stage.
-
----
-
-> [!NOTE]
-> This environment is designed to be extensible. To add a new stage, simply add a module to `server/steps_8/` and register it in `ModelSelectorEnvironment`.
+## 🔮 Future Roadmap
+- [ ] **Multi-Agent Collaboration** — Separate agents for Data Cleaning vs. Modeling.
+- [ ] **Explainable AI** — Agent provides text reasoning for its actions.
+- [ ] **Optuna Integration** — Advanced Bayesian hyperparameter search.
+- [ ] **Visualization Dashboard** — Real-time training monitoring.
