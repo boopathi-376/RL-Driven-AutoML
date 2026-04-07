@@ -105,16 +105,19 @@ class ModelSelectorEnvironment(Environment):
         })
         self._sync_with_global()
 
-def reset(self, params: Optional[EnvInput] = None) -> ModelSelectorObservation:        self._reset_internal_vars()
+    def reset(self, params: Optional[Dict[str, Any]] = None) -> ModelSelectorObservation:
+        self._reset_internal_vars()
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
         print(f"DEBUG: Reset params received: {params}")
 
-        
+        # If OpenEnv wraps the body in a "params" key, extract it
+        if params and "params" in params:
+            params = params["params"]
 
         try:
-            # Store config directly from EnvInput model
-            self.config = params
+            # Reconstruct EnvInput from dict for attribute access
+            self.config = EnvInput(**(params or {}))
 
             if not self.config.data_path:
                 return self._error("data_path is required")
