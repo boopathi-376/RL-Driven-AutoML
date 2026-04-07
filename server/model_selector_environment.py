@@ -105,8 +105,7 @@ class ModelSelectorEnvironment(Environment):
         })
         self._sync_with_global()
 
-    def reset(self, params: Optional[EnvInput] = None) -> ModelSelectorObservation:
-        self._reset_internal_vars()
+def reset(self, params: Optional[EnvInput] = None) -> ModelSelectorObservation:        self._reset_internal_vars()
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
         print(f"DEBUG: Reset params received: {params}")
