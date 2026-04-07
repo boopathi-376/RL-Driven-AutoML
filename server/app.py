@@ -132,10 +132,10 @@ def reset_form_ui():
             <div class="col-title">1 &mdash; Reset</div>
 
             <label for="data_path">Data Path <span style="color:#ef4444">*</span></label>
-            <input type="text" id="data_path" placeholder="data/Salary_dataset.csv" />
+            <input type="text" id="data_path" placeholder="Salary_dataset.csv" />
 
             <label for="target_column">Target Column</label>
-            <input type="text" id="target_column" placeholder="e.g. Salary (blank = auto)" />
+            <input type="text" id="target_column" placeholder="e.g. Salary" />
 
             <label for="latency_budget">Latency Budget (s)</label>
             <input type="number" id="latency_budget" value="120" step="1" />
