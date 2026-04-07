@@ -105,25 +105,21 @@ class ModelSelectorEnvironment(Environment):
         })
         self._sync_with_global()
 
-    def reset(self, params: Optional[Dict[str, Any]] = None) -> ModelSelectorObservation:
+    def reset(self, params: Optional[EnvInput] = None) -> ModelSelectorObservation:
         self._reset_internal_vars()
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
         print(f"DEBUG: Reset params received: {params}")
 
-        if params and "params" in params:
-            params = params["params"]
-
-        if not params or "data_path" not in params:
-            return self._error(f"No data_path provided. Received: {params}")
+        if params is None:
+            return self._error("No reset parameters provided")
 
         try:
-            self.config = EnvInput(
-                data_path=params.get("data_path"),
-                target_column=params.get("target_column"),
-                latency_budget=params.get("latency_budget", 0.0),
-                memory_limit_mb=params.get("memory_limit_mb", 0.0)
-            )
+            # Store config directly from EnvInput model
+            self.config = params
+
+            if not self.config.data_path:
+                return self._error("data_path is required")
 
             file_path = self.config.data_path.lower()
             clean_path = self.config.data_path.replace("\\", "/")
@@ -155,15 +151,27 @@ class ModelSelectorEnvironment(Environment):
                 else:
                     self.file_type = "structured"
                     self.stages = [
-                        "cleaning", "encoding", "engineering", "scaling",
-                        "selection", "model_select", "tuning", "ensemble"
+                        "cleaning",
+                        "encoding",
+                        "engineering",
+                        "scaling",
+                        "selection",
+                        "model_select",
+                        "tuning",
+                        "ensemble"
                     ]
 
             elif file_path.endswith(".xlsx") or file_path.endswith(".xls"):
                 self.file_type = "structured"
                 self.stages = [
-                    "cleaning", "encoding", "engineering", "scaling",
-                    "selection", "model_select", "tuning", "ensemble"
+                    "cleaning",
+                    "encoding",
+                    "engineering",
+                    "scaling",
+                    "selection",
+                    "model_select",
+                    "tuning",
+                    "ensemble"
                 ]
 
             else:
@@ -188,7 +196,7 @@ class ModelSelectorEnvironment(Environment):
 
                 self.X = data
 
-                # Use dummy labels for text processing
+                # Use dummy labels for text datasets
                 self.y = np.zeros(len(self.X))
 
             else:
@@ -198,6 +206,9 @@ class ModelSelectorEnvironment(Environment):
                     data = pd.read_excel(clean_path)
 
                 target_col = self.config.target_column or data.columns[-1]
+
+                if target_col not in data.columns:
+                    return self._error(f"Target column '{target_col}' not found")
 
                 self.y = data[target_col]
                 self.X = data.drop(columns=[target_col])
