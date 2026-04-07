@@ -6,7 +6,7 @@ colorTo: blue
 sdk: docker
 pinned: false
 app_port: 7860
-base_path: /web
+base_path: /reset-form
 tags:
   - openenv
   - reinforcement-learning
@@ -14,24 +14,19 @@ tags:
   - scikit-learn
 ---
 
-# [Brain] RL-Driven AutoML: An Intelligent ML Model Selector
-
-[![OpenEnv](https://img.shields.io/badge/OpenEnv-Compatible-brightgreen)](https://github.com/meta-pytorch/OpenEnv)
-[![License: BSD](https://img.shields.io/badge/License-BSD-yellow.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue)](https://github.com/boopathi-376/RL-Driven-AutoML)
-[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Space-Live%20Demo-yellow)](https://huggingface.co/spaces/boopathi-376/RL-Driven-AutoML)
-
-### [Interactive Playground]
-**Want to try it yourself?** Visit the high-end dashboard to manually orchestrate your pipeline:
-👉 **[Open URL /playground](https://boopathi376-rl-driven-automl.hf.space/playground)**
-
----
+#  RL-Driven AutoML: An Intelligent ML Model Selector
 
 **RL-Driven AutoML** is an interactive environment designed for the **OpenEnv** ecosystem. Unlike static AutoML tools that output a single recommendation, this project treats the machine learning workflow as a **Sequential Decision Process**. It enables Reinforcement Learning (RL) agents to interact with datasets, perform strategic actions (cleaning, encoding, selecting), and receive rewards based on their ability to build high-performing, efficient pipelines.
 
 ---
+## 🔗 Quick Access
 
-## [Concept] The Core Concept: "The Virtual ML Engineer"
+- 🎮 **Playground**: https://boopathi376-rl-driven-automl.hf.space/playground  
+- 🤗 **Hugging Face Space**: https://huggingface.co/spaces/Boopathi376/RL-Driven-AutoML  
+- 💻 **GitHub Repository**: https://github.com/boopathi-376/RL-Driven-AutoML  
+
+---
+##  The Core Concept: "The Virtual ML Engineer"
 
 Traditional AutoML takes an input and returns an output. **RL-Driven AutoML** simulates the human workflow through a structured pipeline. At each stage, the agent makes a strategic decision:
 
@@ -43,7 +38,7 @@ Traditional AutoML takes an input and returns an output. **RL-Driven AutoML** si
 
 ---
 
-## [Workflow] The Intelligent Pipeline Workflow
+##  The Intelligent Pipeline Workflow
 
 For structured data, the environment enforces an 8-stage "Sequential Decision Process". For raw text data, it automatically simplifies to a 4-stage specialized text pipeline.
 
@@ -52,7 +47,7 @@ For structured data, the environment enforces an 8-stage "Sequential Decision Pr
 
 ---
 
-## [Architecture] Environment Architecture
+##  Environment Architecture
 
 ```text
                 +----------------------+
@@ -103,7 +98,7 @@ For structured data, the environment enforces an 8-stage "Sequential Decision Pr
 
 ---
 
-## [API] API Endpoints
+##  API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -115,9 +110,9 @@ For structured data, the environment enforces an 8-stage "Sequential Decision Pr
 
 ---
 
-## [Spec] RL Environment Specifications
+##  RL Environment Specifications
 
-### [Observation] Observation Space
+###  Observation Space
 ```json
 {
   "stage": "encoding",
@@ -132,20 +127,19 @@ For structured data, the environment enforces an 8-stage "Sequential Decision Pr
 }
 ```
 
-### [Reward] Reward System
+###  Reward System
 Rewards are calculated dynamically based on:
 `Reward = Val_Score + (0.2 * Improvement) - (0.3 * Overfit_Gap) - Latency_Penalty`
 
 | Scenario | Reward Signal | Reason |
 |----------|---------------|--------|
-| **Optimal Selection** | +0.85 to +1.0 | High validation accuracy matching task type |
+| **Optimal Selection** | +0.6 to +1.0 | High validation accuracy matching task type |
 | **Overfitting** | -0.40 | Large gap between Training and Validation scores |
 | **Heavy Model** | -0.15 | High computation time / latency penalty |
-| **Binary Skip** | +0.05 | Correctly skipping redundant steps (e.g. scaling for Trees) |
 
 ---
 
-## [Deploy] Getting Started
+##  Getting Started
 
 ### 1. Clone and Install
 ```bash
@@ -167,12 +161,12 @@ uv run python inference.py
 
 ---
 
-## [Folder] Project Structure
+##  Project Structure
 
 ```text
 RL-Driven-AutoML/
 |-- server/
-|   |-- steps_8/        # Core ML Processing Engine
+|   |-- steps_8/        # 8 Core ML Processing Engine
 |   |-- app.py          # FastAPI Server Scaffolding
 |   `-- model_selector_environment.py # Environment Logic
 |-- data/               # Benchmark Datasets (CSV/TXT)
@@ -182,19 +176,17 @@ RL-Driven-AutoML/
 |-- openenv.yaml        # environment manifest
 `-- Dockerfile          # Container configuration
 ```
+### 📊 Task-Based Reward Outcomes
 
+| Task   | Complexity     | Key Challenge                                   | Env Reward |
+|--------|---------------|------------------------------------------------|------------|
+| Easy   | Small CSV     | Simple prediction task with balanced datasets  | 0.74       |
+| Medium | Large Tabular | Mixed data types (encoding + scaling needed)   | 0.57       |
+| Hard   | Long Text     | Complex processing with memory constraints     | 0.61       |
 ---
 
-## [Team] Contributing
-We welcome contributions! Please fork the repository and open a Pull Request for any feature additions or optimizations.
-
-## [Roadmap] Future Roadmap
+##  Future Roadmap
 - [ ] Multi-Agent Collaboration -- Separate agents for Data Cleaning vs. Modeling.
 - [ ] Explainable AI -- Agent provides text reasoning for its actions.
 - [ ] Optuna Integration -- Advanced Bayesian hyperparameter search.
 - [ ] Visualization Dashboard -- Real-time training monitoring.
-
----
-### [Get Started Now]
-Ready to build your first pipeline? 
-🚀 **[Launch the Interactive AutoML Playground](/playground)**
